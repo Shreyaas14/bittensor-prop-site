@@ -1,4 +1,11 @@
 {
+  "name": "bittensor-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon --exec ts-node server.ts",
+    "start": "node server.js"
+  },
   "dependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
@@ -9,5 +16,11 @@
     "mongodb": "^6.13.1",
     "mongoose": "^8.10.1",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "nodemon": "^2.0.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   }
 }
