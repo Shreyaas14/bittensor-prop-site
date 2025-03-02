@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useVote } from '@/hooks/useVote';
 import { useSocket } from '@/hooks/useSocket';
+import { hasVotedForProposal, markProposalAsVoted } from '@/utils/voteHelpers'; // your helper functions
 
 interface VotingStats {
   yes: number;
@@ -22,25 +23,21 @@ interface VotingPanelProps {
 }
 
 const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: initialVotingStats, dates }) => {
-  // Dummy wallet bypass for now
+  // Dummy wallet bypass for now.
   const wallet = "dummy-wallet-address";
   const { vote, loading, error } = useVote(proposalId);
   const socket = useSocket();
 
-  // Use local state for voting stats to update in real time.
   const [votingStats, setVotingStats] = useState<VotingStats>(initialVotingStats);
-
-  // Persistent vote state per proposal via localStorage
   const [hasVoted, setHasVoted] = useState<boolean>(false);
 
+  // On mount or when proposalId changes, read from localStorage
   useEffect(() => {
-    // When proposalId changes, reset local voting stats and check localStorage.
     setVotingStats(initialVotingStats);
-    const votedProposals = JSON.parse(localStorage.getItem('votedProposals') || '{}');
-    setHasVoted(!!votedProposals[proposalId]);
+    setHasVoted(hasVotedForProposal(proposalId));
   }, [proposalId, initialVotingStats]);
 
-  // Listen for vote updates via Socket.io
+  // Listen for real-time vote updates
   useEffect(() => {
     if (!socket) return;
     const handleVoteUpdate = (updatedProposal: any) => {
@@ -48,24 +45,30 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
         setVotingStats(updatedProposal.voting_stats);
       }
     };
-
     socket.on('voteUpdate', handleVoteUpdate);
     return () => {
       socket.off('voteUpdate', handleVoteUpdate);
     };
   }, [socket, proposalId]);
 
+  // Optionally, re-fetch latest stats as a fallback when component mounts
+  useEffect(() => {
+    fetch(`http://localhost:5001/api/proposals/${proposalId}`)
+      .then(res => res.json())
+      .then(data => {
+        setVotingStats(data.voting_stats);
+      })
+      .catch(err => console.error('Error fetching updated proposal:', err));
+  }, [proposalId]);
+
   const handleVote = async (voteType: 'yes' | 'no' | 'abstain') => {
-    // Check if already voted for this proposal
-    const votedProposals = JSON.parse(localStorage.getItem('votedProposals') || '{}');
-    if (votedProposals[proposalId]) return;
+    if (hasVotedForProposal(proposalId)) return;
 
     const result = await vote(voteType, wallet);
     if (result) {
-      votedProposals[proposalId] = true;
-      localStorage.setItem('votedProposals', JSON.stringify(votedProposals));
+      markProposalAsVoted(proposalId);
       setHasVoted(true);
-      // The backend will emit the update, so no need to manually update state here.
+      // The socket event should update votingStats, but you might also refetch here.
     }
   };
 
