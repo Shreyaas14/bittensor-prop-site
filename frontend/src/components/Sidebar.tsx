@@ -8,26 +8,32 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ proposals }) => {
+  console.log('🔄 Sidebar - Component rendering');
+  console.log('📋 Sidebar - Received proposals:', proposals.length);
+  
   const navigate = useNavigate();
 
   return (
     <aside className="w-64 p-4 border-r space-y-4">
       {/* List of Proposals */}
       {proposals.length > 0 ? (
-        proposals.map((proposal) => (
-          <Card
-            key={proposal._id}
-            className="mb-4 cursor-pointer hover:bg-gray-100 transition"
-            onClick={() => navigate(`/proposals/${proposal._id}`)}
-          >
-            <CardHeader>
-              <CardTitle>{proposal.content.summary}</CardTitle>
-            </CardHeader>
-            <p className="text-sm text-muted-foreground p-2">
-              {proposal.content.abstract}
-            </p>
-          </Card>
-        ))
+        proposals.map((proposal) => {
+          console.log('📝 Sidebar - Rendering proposal:', proposal._id);
+          return (
+            <Card
+              key={proposal._id}
+              className="mb-4 cursor-pointer hover:bg-gray-100 transition"
+              onClick={() => navigate(`/proposals/${proposal._id}`)}
+            >
+              <CardHeader>
+                <CardTitle>{proposal.content.summary}</CardTitle>
+              </CardHeader>
+              <p className="text-sm text-muted-foreground p-2">
+                {proposal.content.abstract}
+              </p>
+            </Card>
+          );
+        })
       ) : (
         <p className="text-gray-500 text-sm">No proposals available.</p>
       )}

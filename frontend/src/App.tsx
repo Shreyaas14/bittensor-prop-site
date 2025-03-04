@@ -8,12 +8,20 @@ import VotingPanel from '@/components/VotingPanel';
 import { useProposals, Proposal } from '@/hooks/useProposals';
 
 const AppContent: React.FC = () => {
+  console.log('🔄 AppContent - Component rendering');
   // Fetch proposals for the sidebar
   const { proposals, loading, error } = useProposals();
+  
+  console.log('📋 AppContent - Proposals state:', { 
+    loading, 
+    error, 
+    proposalsCount: proposals?.length || 0 
+  });
 
   // useMatch to extract proposal ID from URL if one is selected
   const match = useMatch('/proposals/:id');
   const selectedProposalId = match?.params.id;
+  console.log('🔗 AppContent - Selected proposal ID from URL:', selectedProposalId);
 
   // Local state to hold the currently selected proposal details
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -21,16 +29,24 @@ const AppContent: React.FC = () => {
   // When the selected proposal ID changes, find it from the fetched proposals.
   // (Alternatively, you could fetch the details separately if you need more data.)
   useEffect(() => {
+    console.log('🔍 AppContent - Looking for proposal with ID:', selectedProposalId);
     if (selectedProposalId && proposals.length) {
       const found = proposals.find((p) => p._id === selectedProposalId) || null;
+      console.log('🔍 AppContent - Found proposal:', found ? 'Yes' : 'No');
       setSelectedProposal(found);
     } else {
       setSelectedProposal(null);
     }
   }, [selectedProposalId, proposals]);
 
-  if (loading) return <p>Loading proposals...</p>;
-  if (error) return <p>Error: {error}</p>;
+  if (loading) {
+    console.log('⏳ AppContent - Showing loading state');
+    return <p>Loading proposals...</p>;
+  }
+  if (error) {
+    console.log('AppContent - Showing error state:', error);
+    return <p>Error: {error}</p>;
+  }
 
   // Dummy dates for voting (replace with real dates if available)
   const dummyDates = {
@@ -39,6 +55,8 @@ const AppContent: React.FC = () => {
     votingEnd: new Date(Date.now() + 86400000).toISOString(), // +1 day
   };
 
+  console.log('AppContent - Rendering main UI with proposals:', proposals.length);
+  
   return (
     <div className="flex h-screen">
       <Sidebar proposals={proposals} />
@@ -69,6 +87,7 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  console.log('🚀 App - Main component rendering');
   return (
     <Router>
       <AppContent />

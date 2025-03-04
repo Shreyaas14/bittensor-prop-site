@@ -21,12 +21,16 @@ export const useProposals = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        console.log('🔍 useProposals hook - Starting to fetch proposals');
         fetchProposals()
         .then((data: Proposal[]) => {
+            console.log('✅ useProposals hook - Proposals fetched successfully:', data);
+            console.log('📊 Number of proposals:', data.length);
             setProposals(data);
             setLoading(false);
         })
         .catch((err: any) => {
+            console.error('❌ useProposals hook - Error fetching proposals:', err);
             setError(err.message || "error fetching proposals");
             setLoading(false);
         })
