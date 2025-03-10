@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useVote } from "@/hooks/useVote";
 import { useSocket } from "@/hooks/useSocket";
+// Change from named import to default import
 import WalletConnectButton from "@/components/ui/WalletConnectButton";
 import { FaClock, FaCheckCircle, FaMinusCircle, FaTimesCircle } from "react-icons/fa";
 
@@ -36,11 +36,10 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   const [taoBalance, setTaoBalance] = useState<number>(0);
   
   // Calculate the timeline directly using the dates prop
-  // @ts-ignore - Ignore TypeScript errors for this line
   const timeline = {
     created: new Date(dates.votingCreatedAt),
-    start: new Date(new Date(dates.votingCreatedAt).getTime() + 24 * 60 * 60 * 1000), // 24 hours after creation
-    end: new Date(new Date(dates.votingCreatedAt).getTime() + 4 * 24 * 60 * 60 * 1000) // 4 days after creation
+    start: new Date(dates.votingStart),
+    end: new Date(dates.votingEnd)
   };
 
   useEffect(() => {
@@ -104,12 +103,12 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   const yesPercentage = (votingStats.yes / totalVotes) * 100;
   const noPercentage = (votingStats.no / totalVotes) * 100;
   const abstainPercentage = (votingStats.abstain / totalVotes) * 100;
-  const isVotingActive = new Date() < new Date(dates.votingEnd);
+  const isVotingActive = new Date() < timeline.end;
 
   // Time remaining calculation
   const getTimeRemaining = () => {
     const now = new Date();
-    const end = new Date(dates.votingEnd);
+    const end = timeline.end;
     
     if (now > end) return "Voting ended";
     
@@ -119,21 +118,10 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
     return `${diffHrs}h remaining`;
   };
 
-  // Check if proposal is in active voting period
-  const isInVotingPeriod = () => {
-    const now = new Date();
-    const start = new Date(dates.votingStart);
-    const end = new Date(dates.votingEnd);
-    
-    return now >= start && now <= end;
-  };
-
   // Check if voting has ended
   const hasVotingEnded = () => {
     const now = new Date();
-    const end = new Date(dates.votingEnd);
-    
-    return now > end;
+    return now > timeline.end;
   };
 
   // Determine if proposal passed
@@ -143,8 +131,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   };
 
   // Format date to 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatDate = (date: Date) => {
     return `${date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -162,172 +149,207 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   };
 
   return (
-    <div className="bg-gray-900 h-full overflow-hidden">
+    <div className="h-full w-80 flex flex-col bg-background-secondary border-l border-border overflow-hidden">
       {/* Header */}
-      <div className="p-4">
+      <div className="p-4 border-b border-border">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-white">Governance Vote</h2>
-          <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full">
-            <FaClock className="text-green-400" />
-            <span className="text-green-400 font-medium">{getTimeRemaining()}</span>
+          <h2 className="text-header-sm font-medium text-white">Cast Vote</h2>
+          <div className="flex items-center gap-2 bg-background px-3 py-1 rounded-full">
+            <FaClock className="text-teal" size={12} />
+            <span className="text-teal text-label-sm">{getTimeRemaining()}</span>
           </div>
         </div>
       </div>
       
       {/* Voting Section */}
-      <div className="p-4">
-        <h3 className="text-lg font-bold text-white mb-4">Cast Your Vote</h3>
-        
-        {!account ? (
-          <div className="mb-4">
-            <WalletConnectButton onConnect={handleWalletConnect} />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {/* For */}
-            <div 
-              onClick={() => !hasVoted && handleVote("yes")}
-              className={`flex items-center justify-between p-4 rounded-lg bg-gray-800 border ${selectedVote === "yes" ? "border-green-500" : "border-gray-700"} cursor-pointer`}
-            >
-              <div className="flex items-center">
-                <FaCheckCircle className="text-green-400 mr-2" />
-                <span className="text-white">For</span>
-                <span className="text-green-400 font-bold ml-2">{votingStats.yes}</span>
-              </div>
-              <span className="text-white">{yesPercentage.toFixed(1)}%</span>
+      <div className="flex-1 overflow-auto">
+        <div className="p-4">
+          {!account ? (
+            <div className="mb-6">
+              <p className="text-text-secondary mb-4">Connect your wallet to cast your vote on this proposal.</p>
+              <WalletConnectButton onConnect={handleWalletConnect} />
             </div>
-            
-            {/* Abstain */}
-            <div 
-              onClick={() => !hasVoted && handleVote("abstain")}
-              className={`flex items-center justify-between p-4 rounded-lg bg-gray-800 border ${selectedVote === "abstain" ? "border-gray-500" : "border-gray-700"} cursor-pointer`}
-            >
-              <div className="flex items-center">
-                <FaMinusCircle className="text-gray-400 mr-2" />
-                <span className="text-white">Abstain</span>
-                <span className="text-gray-400 font-bold ml-2">{votingStats.abstain}</span>
+          ) : (
+            <div className="space-y-3">
+              {/* Connected wallet info */}
+              <div className="p-3 rounded-lg bg-card border border-border mb-6">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-label-md text-text-secondary">Connected Wallet</span>
+                  {hasVoted && <span className="text-label-xs text-teal bg-teal/10 px-2 py-0.5 rounded">Voted</span>}
+                </div>
+                <div className="font-mono text-label-md text-white truncate">
+                  {account.substring(0, 8)}...{account.substring(account.length - 6)}
+                </div>
+                <div className="mt-2 flex items-baseline">
+                  <span className="text-label-lg font-medium text-white">{taoBalance}</span>
+                  <span className="text-label-sm text-text-secondary ml-1">τ</span>
+                </div>
               </div>
-              <span className="text-white">{abstainPercentage.toFixed(1)}%</span>
+              
+              {/* For */}
+              <button 
+                onClick={() => !hasVoted && isVotingActive && handleVote("yes")}
+                disabled={hasVoted || !isVotingActive}
+                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors
+                  ${selectedVote === "yes" 
+                    ? "bg-card border-teal" 
+                    : "bg-card border-border hover:border-teal"}
+                  ${(hasVoted && selectedVote !== "yes") || !isVotingActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className="flex items-center">
+                  <FaCheckCircle className="text-teal mr-2" size={16} />
+                  <span className="text-white">For</span>
+                </div>
+                <div className="flex items-baseline">
+                  <span className="text-label-md text-teal font-medium mr-1">{votingStats.yes}</span>
+                  <span className="text-label-sm text-teal">({yesPercentage.toFixed(1)}%)</span>
+                </div>
+              </button>
+              
+              {/* Against */}
+              <button 
+                onClick={() => !hasVoted && isVotingActive && handleVote("no")}
+                disabled={hasVoted || !isVotingActive}
+                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors
+                  ${selectedVote === "no" 
+                    ? "bg-card border-gradient-orange" 
+                    : "bg-card border-border hover:border-gradient-orange"}
+                  ${(hasVoted && selectedVote !== "no") || !isVotingActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className="flex items-center">
+                  <FaTimesCircle className="text-gradient-orange mr-2" size={16} />
+                  <span className="text-white">Against</span>
+                </div>
+                <div className="flex items-baseline">
+                  <span className="text-label-md text-gradient-orange font-medium mr-1">{votingStats.no}</span>
+                  <span className="text-label-sm text-gradient-orange">({noPercentage.toFixed(1)}%)</span>
+                </div>
+              </button>
+              
+              {/* Abstain */}
+              <button 
+                onClick={() => !hasVoted && isVotingActive && handleVote("abstain")}
+                disabled={hasVoted || !isVotingActive}
+                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors
+                  ${selectedVote === "abstain" 
+                    ? "bg-card border-text-secondary" 
+                    : "bg-card border-border hover:border-text-secondary"}
+                  ${(hasVoted && selectedVote !== "abstain") || !isVotingActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className="flex items-center">
+                  <FaMinusCircle className="text-text-secondary mr-2" size={16} />
+                  <span className="text-white">Abstain</span>
+                </div>
+                <div className="flex items-baseline">
+                  <span className="text-label-md text-text-secondary font-medium mr-1">{votingStats.abstain}</span>
+                  <span className="text-label-sm text-text-secondary">({abstainPercentage.toFixed(1)}%)</span>
+                </div>
+              </button>
+            </div>
+          )}
+          
+          {hasVoted && (
+            <div className="mt-4 p-3 bg-teal/10 border border-teal/30 rounded-lg">
+              <p className="text-teal flex items-center gap-2">
+                <FaCheckCircle size={14} />
+                <span className="text-label-md">Your vote has been recorded!</span>
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Results Section */}
+        <div className="p-4 border-t border-border">
+          <h3 className="text-label-lg font-medium text-white mb-4">Results</h3>
+          
+          <div className="space-y-4">
+            {/* For */}
+            <div className="mb-4">
+              <div className="flex justify-between text-label-md mb-1">
+                <span className="text-text-secondary">For</span>
+                <span className="text-teal">{yesPercentage.toFixed(1)}%</span>
+              </div>
+              <Progress value={yesPercentage} variant="positive" className="mb-1" />
+              <div className="text-label-sm text-text-secondary">{votingStats.yes} τ</div>
             </div>
             
             {/* Against */}
-            <div 
-              onClick={() => !hasVoted && handleVote("no")}
-              className={`flex items-center justify-between p-4 rounded-lg bg-gray-800 border ${selectedVote === "no" ? "border-red-500" : "border-gray-700"} cursor-pointer`}
-            >
-              <div className="flex items-center">
-                <FaTimesCircle className="text-red-400 mr-2" />
-                <span className="text-white">Against</span>
-                <span className="text-red-400 font-bold ml-2">{votingStats.no}</span>
+            <div className="mb-4">
+              <div className="flex justify-between text-label-md mb-1">
+                <span className="text-text-secondary">Against</span>
+                <span className="text-gradient-orange">{noPercentage.toFixed(1)}%</span>
               </div>
-              <span className="text-white">{noPercentage.toFixed(1)}%</span>
+              <Progress value={noPercentage} variant="negative" className="mb-1" />
+              <div className="text-label-sm text-text-secondary">{votingStats.no} τ</div>
             </div>
-          </div>
-        )}
-        
-        {hasVoted && (
-          <div className="mt-4 p-3 bg-green-900/30 border border-green-800 rounded-lg">
-            <p className="text-green-400 flex items-center gap-2">
-              <FaCheckCircle />
-              <span>Your vote has been recorded!</span>
-            </p>
-          </div>
-        )}
-      </div>
-      
-      {/* Results Section */}
-      <div className="p-4">
-        <h3 className="text-lg font-bold text-white mb-4">Results</h3>
-        
-        <div className="space-y-4">
-          {/* For */}
-          <div className="mb-6">
-            <div className="flex justify-between text-white mb-1">
-              <span>For</span>
-              <span>{yesPercentage.toFixed(1)}%</span>
+            
+            {/* Abstain */}
+            <div className="mb-4">
+              <div className="flex justify-between text-label-md mb-1">
+                <span className="text-text-secondary">Abstain</span>
+                <span className="text-text-secondary">{abstainPercentage.toFixed(1)}%</span>
+              </div>
+              <div className="relative h-1 w-full overflow-hidden rounded-full bg-background mb-1">
+                <div className="h-full bg-text-secondary" style={{ width: `${abstainPercentage}%` }}></div>
+              </div>
+              <div className="text-label-sm text-text-secondary">{votingStats.abstain} τ</div>
             </div>
-            <div className="w-full bg-gray-800 h-1 rounded-full mb-1">
-              <div className="h-full bg-green-500 rounded-full" style={{ width: `${yesPercentage}%` }}></div>
-            </div>
-            <div className="text-gray-400 text-sm">{votingStats.yes} TAO</div>
-          </div>
-          
-          {/* Abstain */}
-          <div className="mb-6">
-            <div className="flex justify-between text-white mb-1">
-              <span>Abstain</span>
-              <span>{abstainPercentage.toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-800 h-1 rounded-full mb-1">
-              <div className="h-full bg-gray-500 rounded-full" style={{ width: `${abstainPercentage}%` }}></div>
-            </div>
-            <div className="text-gray-400 text-sm">{votingStats.abstain} TAO</div>
-          </div>
-          
-          {/* Against */}
-          <div className="mb-6">
-            <div className="flex justify-between text-white mb-1">
-              <span>Against</span>
-              <span>{noPercentage.toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-800 h-1 rounded-full mb-1">
-              <div className="h-full bg-red-500 rounded-full" style={{ width: `${noPercentage}%` }}></div>
-            </div>
-            <div className="text-gray-400 text-sm">{votingStats.no} TAO</div>
-          </div>
-          
-          <div className="pt-2 border-t border-gray-700 flex justify-between text-white">
-            <span>Total Votes</span>
-            <div>
-              <span className="font-bold text-white">{votingStats.total_votes}</span>
-              <span className="text-gray-400 ml-1">TAO</span>
+            
+            <div className="pt-2 border-t border-border flex justify-between text-white">
+              <span className="text-label-md">Total Votes</span>
+              <div>
+                <span className="font-medium">{votingStats.total_votes}</span>
+                <span className="text-text-secondary ml-1">τ</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Timeline */}
-      <div className="p-4">
-        <h3 className="text-lg font-bold text-white mb-4">Timeline</h3>
         
-        <div className="relative border-l-2 border-gray-700 pl-4 pb-4">
-          {/* Created */}
-          <div className="mb-6 relative">
-            <div className="absolute -left-[3px] top-0 w-4 h-4 rounded-full bg-green-500"></div>
-            <div className="ml-5">
-              <p className="font-bold text-white">Created</p>
-              <p className="text-gray-400 text-sm">{formatDate(timeline.created.toISOString())}</p>
-            </div>
-          </div>
+        {/* Timeline */}
+        <div className="p-4 border-t border-border">
+          <h3 className="text-label-lg font-medium text-white mb-4">Timeline</h3>
           
-          {/* Start */}
-          <div className="mb-6 relative">
-            <div className="absolute -left-[3px] top-0 w-4 h-4 rounded-full bg-green-500"></div>
-            <div className="ml-5">
-              <p className="font-bold text-white">Start</p>
-              <p className="text-gray-400 text-sm">{formatDate(timeline.start.toISOString())}</p>
-            </div>
-          </div>
-          
-          {/* End */}
-          <div className="relative">
-            <div className={`absolute -left-[3px] top-0 w-4 h-4 rounded-full ${hasVotingEnded() ? "bg-green-500" : "bg-gray-500"}`}></div>
-            <div className="ml-5">
-              <p className="font-bold text-white">End</p>
-              <p className="text-gray-400 text-sm">{formatDate(timeline.end.toISOString())}</p>
-            </div>
-          </div>
-          
-          {/* Show result if voting has ended */}
-          {hasVotingEnded() && (
-            <div className="mt-6 relative">
-              <div className={`absolute -left-[3px] top-0 w-4 h-4 rounded-full ${didProposalPass() ? "bg-green-500" : "bg-red-500"}`}></div>
-              <div className="ml-5">
-                <p className="font-bold text-white">{didProposalPass() ? "Passed" : "Failed"}</p>
-                <p className="text-gray-400 text-sm">{formatDate(new Date().toISOString())}</p>
+          <div className="relative border-l-2 border-border pl-4 pb-4">
+            {/* Created */}
+            <div className="mb-6 relative">
+              <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-teal"></div>
+              <div className="ml-4">
+                <p className="text-label-md font-medium text-white">Created</p>
+                <p className="text-label-sm text-text-secondary">{formatDate(timeline.created)}</p>
               </div>
             </div>
-          )}
+            
+            {/* Voting Start */}
+            <div className="mb-6 relative">
+              <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-teal"></div>
+              <div className="ml-4">
+                <p className="text-label-md font-medium text-white">Voting Start</p>
+                <p className="text-label-sm text-text-secondary">{formatDate(timeline.start)}</p>
+              </div>
+            </div>
+            
+            {/* Voting End */}
+            <div className="relative">
+              <div className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full ${hasVotingEnded() ? "bg-teal" : "bg-border"}`}></div>
+              <div className="ml-4">
+                <p className="text-label-md font-medium text-white">Voting End</p>
+                <p className="text-label-sm text-text-secondary">{formatDate(timeline.end)}</p>
+              </div>
+            </div>
+            
+            {/* Result (if voting has ended) */}
+            {hasVotingEnded() && (
+              <div className="mt-6 relative">
+                <div className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full ${didProposalPass() ? "bg-teal" : "bg-gradient-orange"}`}></div>
+                <div className="ml-4">
+                  <p className={`text-label-md font-medium ${didProposalPass() ? "text-teal" : "text-gradient-orange"}`}>
+                    {didProposalPass() ? "Passed" : "Failed"}
+                  </p>
+                  <p className="text-label-sm text-text-secondary">{formatDate(new Date())}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

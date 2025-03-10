@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { web3Enable, web3Accounts, web3FromAddress } from "@polkadot/extension-dapp";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import axios from "axios";
-import { FaWallet, FaExclamationTriangle, FaTimes } from "react-icons/fa";
+import { FaWallet, FaExclamationTriangle, FaTimes, FaSpinner } from "react-icons/fa";
 
 interface WalletSession {
   address: string;
@@ -12,7 +12,9 @@ interface WalletSession {
   balance: number;
 }
 
-const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBalance: number) => void }> = ({ onConnect }) => {
+const WalletConnectButton: React.FC<{ 
+  onConnect: (address: string | null, taoBalance: number) => void 
+}> = ({ onConnect }) => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [session, setSession] = useState<WalletSession | null>(null);
@@ -177,10 +179,10 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
           transition={{ duration: 0.3 }}
           className={`fixed top-4 right-4 z-50 rounded-lg shadow-lg p-4 max-w-sm ${
             notificationType === "error" 
-              ? "bg-red-500 text-white" 
+              ? "bg-gradient-orange/90 border border-gradient-orange" 
               : notificationType === "success" 
-                ? "bg-green-500 text-white" 
-                : "bg-blue-500 text-white"
+                ? "bg-teal/90 border border-teal" 
+                : "bg-background-secondary border border-border"
           }`}
         >
           <div className="flex items-center">
@@ -192,16 +194,16 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
               )}
             </div>
             <div className="flex-1">
-              <h3 className="font-medium">
+              <h3 className="font-medium text-white">
                 {notificationType === "error" ? "Error" : notificationType === "success" ? "Success" : "Info"}
               </h3>
-              <p className="text-sm opacity-90">{notificationMessage}</p>
+              <p className="text-sm text-white/90">{notificationMessage}</p>
               {notificationType === "error" && (
                 <a 
                   href="https://chromewebstore.google.com/detail/bittensor-wallet/bdgmdoedahdcjmpmifafdhnffjinddgc?hl=en" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-white text-sm underline mt-1 block hover:text-blue-100"
+                  className="text-white text-sm underline mt-1 block hover:opacity-90"
                 >
                   Install Bittensor Wallet Extension
                 </a>
@@ -223,14 +225,10 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
     return (
       <>
         <Notification />
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-blue-600 text-white font-bold text-center py-4 px-6 rounded-lg w-full flex items-center justify-center"
-        >
-          <div className="mr-2 animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+        <div className="bg-card border border-border text-white font-medium text-center py-3 px-4 rounded-lg w-full flex items-center justify-center">
+          <div className="mr-2 animate-spin h-4 w-4 border-2 border-teal border-t-transparent rounded-full"></div>
           Connecting...
-        </motion.div>
+        </div>
       </>
     );
   }
@@ -243,9 +241,9 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-gray-800 rounded-lg p-4 border border-gray-700 shadow-xl"
+          className="bg-card border border-border rounded-lg p-4 shadow-lg"
         >
-          <p className="text-white font-bold mb-3">Select Account</p>
+          <p className="text-white font-medium mb-3">Select Account</p>
           <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
             {accounts.map((account) => (
               <motion.div
@@ -255,12 +253,12 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
                 onClick={() => setSelectedAccount(account.address)}
                 className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                   selectedAccount === account.address 
-                    ? "bg-blue-900 border border-blue-500" 
-                    : "bg-gray-700 border border-gray-600 hover:border-gray-500"
+                    ? "bg-teal/10 border border-teal" 
+                    : "bg-background border border-border hover:border-teal/50"
                 }`}
               >
                 <p className="text-white font-medium">{account.meta.name}</p>
-                <p className="text-gray-400 text-sm">{formatAddress(account.address)}</p>
+                <p className="text-text-secondary text-sm font-mono">{formatAddress(account.address)}</p>
               </motion.div>
             ))}
           </div>
@@ -270,7 +268,7 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setShowAccounts(false)}
-              className="flex-1 py-2 px-3 text-white bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
+              className="flex-1 py-2 px-3 text-white bg-background border border-border hover:bg-card rounded-lg font-medium"
             >
               Cancel
             </motion.button>
@@ -279,7 +277,7 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
               whileTap={{ scale: 0.97 }}
               onClick={handleSignIn}
               disabled={!selectedAccount}
-              className="flex-1 py-2 px-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-bold disabled:bg-gray-600 disabled:text-gray-400 transition-colors duration-200"
+              className="flex-1 py-2 px-3 text-black bg-teal hover:opacity-90 rounded-lg font-medium disabled:bg-text-secondary disabled:opacity-50 transition-colors duration-200"
             >
               Connect
             </motion.button>
@@ -289,7 +287,7 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
             <motion.p 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="mt-3 text-red-400 text-sm"
+              className="mt-3 text-gradient-orange text-sm"
             >
               {error}
             </motion.p>
@@ -300,7 +298,7 @@ const WalletConnectButton: React.FC<{ onConnect: (address: string | null, taoBal
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={connectWallet}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-center py-4 px-6 rounded-lg w-full flex items-center justify-center transition-colors duration-200"
+          className="bg-teal hover:opacity-90 text-black font-medium text-center py-3 px-4 rounded-lg w-full flex items-center justify-center transition-colors duration-200"
         >
           <FaWallet className="mr-2" />
           {session ? "Connected" : "Connect Bittensor Wallet"}

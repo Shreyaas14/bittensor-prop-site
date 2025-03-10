@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 export interface ProposalContent {
   summary: string;
   abstract: string;
+  details?: string; // Add the optional details property
 }
 
 export interface VotingStats {
@@ -17,6 +18,7 @@ export interface ProposalDetailData {
   _id: string;
   content: ProposalContent;
   voting_stats: VotingStats;
+  created_at?: string;
 }
 
 export const useProposalDetail = () => {
