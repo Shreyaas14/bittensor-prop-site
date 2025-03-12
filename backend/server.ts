@@ -146,6 +146,8 @@ app.post('/api/proposals', async (req, res) => {
   try {
     const newProposal = new Proposal(req.body);
     const savedProposal = await newProposal.save();
+
+    io.emit('proposalCreated', savedProposal);
     res.status(201).json(savedProposal);
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -7,9 +7,7 @@ export const useSocket = () => {
   const [socket, setSocket] = useState<any>(null);
 
   useEffect(() => {
-    const newSocket = io(SOCKET_SERVER_URL, {
-      transports: ["websocket", "polling"],
-    });
+    const newSocket = io(SOCKET_SERVER_URL);
     setSocket(newSocket);
 
     return () => {

@@ -1,8 +1,10 @@
 // App.tsx
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useMatch, Link } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar';
 import ProposalDetail from '@/components/ProposalDetail';
+import ProposalCreation from '@/components/ProposalCreation';
+import { BrowserRouter as Router, Routes, Route, useMatch, Link } from 'react-router-dom';
+import Sidebar from '@/components/Sidebar';
 import VotingPanel from '@/components/VotingPanel';
 import { useProposals, Proposal } from '@/hooks/useProposals';
 import { FaHome, FaChartLine, FaFileAlt, FaUsers, FaGlobe, FaExclamationTriangle } from 'react-icons/fa';
@@ -12,7 +14,6 @@ import '@/styles/globals.css';
 
 const AppContent: React.FC = () => {
   console.log('🔄 AppContent - Component rendering');
-  // Fetch proposals for the sidebar
   const { proposals, loading, error } = useProposals();
   
   console.log('📋 AppContent - Proposals state:', { 
@@ -21,15 +22,14 @@ const AppContent: React.FC = () => {
     proposalsCount: proposals?.length || 0 
   });
 
-  // useMatch to extract proposal ID from URL if one is selected
+  // Use react-router's useMatch to capture the currently selected proposal id.
   const match = useMatch('/proposals/:id');
   const selectedProposalId = match?.params.id;
   console.log('🔗 AppContent - Selected proposal ID from URL:', selectedProposalId);
 
-  // Local state to hold the currently selected proposal details
+  // Store the currently selected proposal in local state.
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
 
-  // When the selected proposal ID changes, find it from the fetched proposals.
   useEffect(() => {
     console.log('🔍 AppContent - Looking for proposal with ID:', selectedProposalId);
     if (selectedProposalId && proposals.length) {
@@ -74,7 +74,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Dummy dates for voting (replace with real dates if available)
+  // Dummy voting dates; replace these with real dates if available.
   const dummyDates = {
     votingCreatedAt: new Date().toISOString(),
     votingStart: new Date().toISOString(),

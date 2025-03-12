@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { Proposal } from '@/hooks/useProposals';
+import { useSocket } from '@/hooks/useSocket';
 
 interface SidebarProps {
   proposals: Proposal[];
@@ -11,6 +13,23 @@ const Sidebar: React.FC<SidebarProps> = ({ proposals }) => {
   console.log('📋 Sidebar - Received proposals:', proposals.length);
   
   const navigate = useNavigate();
+  const socket = useSocket();
+  const [localProposals, setLocalProposals] = useState<Proposal[]>(proposals);
+
+  useEffect(() => {
+    setLocalProposals(proposals);
+  }, [proposals]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleProposalCreated = (newProposal: Proposal) => {
+      setLocalProposals((prev) => [...prev, newProposal]);
+    };
+    socket.on('proposalCreated', handleProposalCreated);
+    return () => {
+      socket.off('proposalCreated', handleProposalCreated);
+    };
+  }, [socket]);
 
   return (
     <aside className="w-64 h-full bg-background-secondary border-r border-border overflow-auto">

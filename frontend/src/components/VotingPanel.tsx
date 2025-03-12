@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { useVote } from "@/hooks/useVote";
-import { useSocket } from "@/hooks/useSocket";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { useVote } from '@/hooks/useVote';
+import { useSocket } from '@/hooks/useSocket';
+import { hasVotedForProposal, markProposalAsVoted } from '@/utils/voteHelpers'; // your helper functions
 // Change from named import to default import
 import WalletConnectButton from "@/components/ui/WalletConnectButton";
 import { FaClock, FaCheckCircle, FaMinusCircle, FaTimesCircle } from "react-icons/fa";
@@ -42,6 +43,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
     end: new Date(dates.votingEnd)
   };
 
+  // On mount or when proposalId changes, read from localStorage
   useEffect(() => {
     setVotingStats(initialVotingStats);
     const votedProposals = JSON.parse(localStorage.getItem("votedProposals") || "{}");
@@ -50,7 +52,6 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
       setSelectedVote(votedProposals[proposalId + "_type"] || null);
     }
   }, [proposalId, initialVotingStats]);
-
   useEffect(() => {
     if (!socket) return;
     const handleVoteUpdate = (updatedProposal: any) => {
@@ -58,7 +59,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
         setVotingStats(updatedProposal.voting_stats);
       }
     };
-    socket.on("voteUpdate", handleVoteUpdate);
+    socket.on('voteUpdate', handleVoteUpdate);
     return () => {
       socket.off("voteUpdate", handleVoteUpdate);
     };

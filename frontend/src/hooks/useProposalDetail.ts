@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 export interface ProposalContent {
+  title: string; // New field
   summary: string;
   abstract: string;
-  details?: string; // Add the optional details property
+  full_proposal: string; // Assumes the API transforms "full_proposal" to camelCase
 }
 
 export interface VotingStats {
@@ -16,6 +17,7 @@ export interface VotingStats {
 
 export interface ProposalDetailData {
   _id: string;
+  walletAddress: string;  // New field from proposal_creator
   content: ProposalContent;
   voting_stats: VotingStats;
   created_at?: string;
