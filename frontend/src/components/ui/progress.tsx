@@ -1,26 +1,44 @@
-import * as React from "react"
-import * as ProgressPrimitive from "@radix-ui/react-progress"
+// src/components/ui/progress.tsx
+import React from "react";
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
+interface ProgressProps {
+  value?: number;
+  variant?: "default" | "positive" | "negative";
+  className?: string;
+}
 
-const Progress = React.forwardRef<
-  React.ElementRef<typeof ProgressPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
->(({ className, value, ...props }, ref) => (
-  <ProgressPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
-      className
-    )}
-    {...props}
-  >
-    <ProgressPrimitive.Indicator
-      className="h-full w-full flex-1 bg-primary transition-all"
-      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
-    />
-  </ProgressPrimitive.Root>
-))
-Progress.displayName = ProgressPrimitive.Root.displayName
+const Progress: React.FC<ProgressProps> = ({
+  value = 0, 
+  variant = "default", 
+  className,
+  ...props
+}) => {
+  const getIndicatorColor = () => {
+    switch (variant) {
+      case "positive":
+        return "bg-chart-positive";
+      case "negative":
+        return "bg-chart-negative";
+      default:
+        return "bg-teal";
+    }
+  };
 
-export { Progress }
+  return (
+    <div
+      className={cn(
+        "relative h-1 w-full overflow-hidden rounded-full bg-background-secondary",
+        className
+      )}
+      {...props}
+    >
+      <div
+        className={cn("h-full transition-all", getIndicatorColor())}
+        style={{ width: `${value}%` }}
+      />
+    </div>
+  );
+};
+
+export { Progress };
