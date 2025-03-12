@@ -1,4 +1,3 @@
-// src/hooks/useProposals.ts
 import { useState, useEffect } from 'react';
 import { fetchProposals } from '@/api/api';
 import { io, Socket } from 'socket.io-client';
@@ -6,8 +5,10 @@ import { io, Socket } from 'socket.io-client';
 export interface Proposal {
   _id: string;
   content: {
+    title: string; // New field
     summary: string;
     abstract: string;
+    fullProposal: string;
   };
   voting_stats: {
     yes: number;
@@ -15,6 +16,7 @@ export interface Proposal {
     abstain: number;
     total_votes: number;
   };
+  walletAddress: string; // New field
 }
 
 export const useProposals = () => {
