@@ -5,15 +5,29 @@ export const useVote = (proposalId: string) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const vote = async (voteType: 'yes' | 'no' | 'abstain', wallet: string | null) => {
+  const vote = async (voteType: 'yes' | 'no' | 'abstain', wallet: string | null, taoBalance: number) => {
     if (!wallet) {
       setError('Wallet not connected');
       return;
     }
+
+    if (taoBalance <= 0) {
+      setError('Insufficient TAO balance to vote');
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      const updatedProposal = await castVote(proposalId, voteType);
+      // ✅ Ensure voteWeight is properly assigned
+      const voteWeight = taoBalance || 1; // Default to 1 if undefined
+
+      console.log(`🔄 Casting vote with weight: ${voteWeight} TAO`);
+
+      // Ensure `castVote` receives the correct parameters
+      const updatedProposal = await castVote(proposalId, voteType, wallet!, voteWeight);
+
       setLoading(false);
       return updatedProposal;
     } catch (err: any) {

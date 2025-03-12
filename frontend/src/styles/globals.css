@@ -1,0 +1,336 @@
+/* globals.css */
+
+@import 'everett.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Main Colors */
+  --black: #000000;
+  --white: #FFFFFF;
+  --grey: #141414;
+  --teal: #00DBBC;
+  
+  /* Gradient Colors */
+  --gradient-teal: #00DBBC;
+  --gradient-orange: #FF8B25;
+  --gradient-brown: #7D6250;
+  
+  /* Background Colors */
+  --background: #0C0C0C;
+  --background-secondary: #141414;
+  --card-background: #191919;
+  --card-hover: #202020;
+  
+  /* Border Colors */
+  --border: #2b2b2b;
+  
+  /* Text Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAAAAA;
+  --text-muted: #888888;
+  
+  /* Chart Colors */
+  --chart-line: #00DBBC;
+  --chart-volume: #3A3A3A;
+  --chart-positive: #00DBBC;
+  --chart-negative: #FF8B25;
+  
+  /* Special Elements */
+  --dropdown-bg: #1A1A1A;
+  --tooltip-bg: #2A2A2A;
+}
+
+* {
+  font-family: 'Everett', sans-serif;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Typography */
+h1, .display-large {
+  font-size: 4rem;
+  line-height: 4.875rem;
+  letter-spacing: -0.06em;
+  font-weight: 500;
+}
+
+h2, .display-medium {
+  font-size: 3rem;
+  line-height: 3.75rem;
+  letter-spacing: -0.06em;
+  font-weight: 500;
+}
+
+h3, .display-small {
+  font-size: 2.5rem;
+  line-height: 3rem;
+  letter-spacing: -0.06em;
+  font-weight: 500;
+}
+
+h4, .header-large {
+  font-size: 2.25rem;
+  line-height: 2.75rem;
+  letter-spacing: -0.06em;
+  font-weight: 400;
+}
+
+h5, .header-medium {
+  font-size: 1.5rem;
+  line-height: 1.813rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+h6, .header-small {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+.header-xs {
+  font-size: 1rem;
+  line-height: 1.25rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+p, .body-medium {
+  font-size: 1rem;
+  line-height: 1.25rem;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+.body-large {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+.body-small {
+  font-size: 0.688rem;
+  line-height: 0.813rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+.label-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+.label-sm {
+  font-size: 0.813rem;
+  line-height: 1rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+.label-md {
+  font-size: 0.875rem;
+  line-height: 1rem;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+.label-lg {
+  font-size: 0.938rem;
+  line-height: 1.125rem;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+
+.button-lg {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+.button-md {
+  font-size: 1rem;
+  line-height: 1.125rem;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+}
+
+.button-sm {
+  font-size: 0.875rem;
+  line-height: 1rem;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+}
+
+.metadata {
+  font-size: 1rem;
+  line-height: 1.313rem;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+
+/* Cards & Containers */
+.card {
+  background-color: var(--card-background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  background-color: var(--card-hover);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+}
+
+tr:hover {
+  background-color: var(--card-hover);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Utility Classes */
+.text-positive {
+  color: var(--teal);
+}
+
+.text-negative {
+  color: var(--gradient-orange);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.bg-gradient {
+  background: linear-gradient(90deg, var(--gradient-teal), var(--gradient-orange));
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+/* Layout */
+.container {
+  width: 100%;
+  margin: 0 auto;
+  max-width: 1280px;
+  padding: 0 1rem;
+}
+
+.tao-logo {
+  height: 24px;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #0C0C0C;
+    --background-secondary: #141414;
+    --text-primary: #FFFFFF;
+    --text-secondary: #AAAAAA;
+  }
+}
+
+/* Ensure Tailwind recognizes custom styles */
+@layer base {
+  :root {
+    --text-foreground: #FFFFFF;
+    --outline-ring: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Define missing classes */
+  .text-foreground {
+    color: var(--text-foreground);
+  }
+
+  .outline-ring {
+    outline: 2px solid var(--outline-ring);
+  }
+}

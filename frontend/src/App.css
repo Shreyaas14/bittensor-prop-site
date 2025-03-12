@@ -1,42 +1,173 @@
+/* App.css */
+@import url('@/styles/globals.css');
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  text-align: left;
 }
 
 .logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
+  height: 24px;
   transition: filter 300ms;
 }
+
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 0.5em #00DBBC);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Dark Theme Colors (Matching Bittensor) */
+:root {
+  /* Main Colors */
+  --black: #000000;
+  --white: #FFFFFF;
+  --grey: #141414;
+  --teal: #00DBBC;
+  
+  /* Gradient Colors */
+  --gradient-teal: #00DBBC;
+  --gradient-orange: #FF8B25;
+  --gradient-brown: #7D6250;
+  
+  /* Background Colors */
+  --background: #0C0C0C;
+  --background-secondary: #141414;
+  --card-background: #191919;
+  --card-hover: #202020;
+  
+  /* Border Colors */
+  --border: #2b2b2b;
+  
+  /* Text Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAAAAA;
+  --text-muted: #888888;
+}
+
+/* Utility Classes */
+.bg-gradient {
+  background: linear-gradient(90deg, var(--gradient-teal), var(--gradient-orange));
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--gradient-teal), var(--gradient-orange));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Stats Card Styling */
+.stats-card {
+  background-color: var(--card-background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.stats-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 0 10px rgba(0, 219, 188, 0.1);
+}
+
+.stats-card .label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 4px;
+}
+
+.stats-card .value {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Table Styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background-color: var(--background-secondary);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:hover {
+  background-color: var(--card-hover);
+}
+
+/* Chart Styling */
+.chart-container {
+  width: 100%;
+  height: 300px;
+  margin: 20px 0;
+}
+
+/* Positive/Negative Values */
+.positive {
+  color: var(--teal);
+}
+
+.negative {
+  color: var(--gradient-orange);
+}
+
+/* Responsive Layout */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 240px;
   }
-  to {
-    transform: rotate(360deg);
+  
+  .main-content {
+    padding: 16px;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .main-content {
+    padding: 12px;
+  }
 }

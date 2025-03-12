@@ -20,6 +20,7 @@ export interface ProposalDetailData {
   walletAddress: string;  // New field from proposal_creator
   content: ProposalContent;
   voting_stats: VotingStats;
+  created_at?: string;
 }
 
 export const useProposalDetail = () => {

@@ -1,13 +1,34 @@
 {
+  "name": "bittensor-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon --exec ts-node server.ts",
+    "start": "node server.js"
+  },
   "dependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
+    "@polkadot/api": "^15.7.2",
+    "@polkadot/extension-dapp": "^0.58.4",
+    "@polkadot/types": "^15.7.2",
+    "axios": "^1.8.1",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "mongodb": "^6.13.1",
-    "mongoose": "^8.10.1",
-    "socket.io": "^4.8.1"
+    "mongoose": "^8.11.0",
+    "node-fetch": "^3.3.2",
+    "pyodide": "^0.27.3",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.5",
+    "@types/node-fetch": "^2.6.12",
+    "nodemon": "^2.0.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   }
 }

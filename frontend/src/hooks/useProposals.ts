@@ -47,3 +47,4 @@ export const useProposals = () => {
 
   return { proposals, loading, error };
 };
+
