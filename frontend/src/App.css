@@ -171,3 +171,59 @@ tr:hover {
     padding: 12px;
   }
 }
+
+/* Add these styles to App.css */
+.layout {
+  flex-direction: row;
+  min-height: calc(100vh - 56px); /* Adjust based on your header height */
+}
+
+.sidebar {
+  width: 280px;
+  height: 100%;
+  border-right: 1px solid var(--border);
+  background-color: #000000;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #000000;
+}
+
+.right-panel {
+  width: 320px;
+  border-left: 1px solid var(--border);
+  background-color: #000000;
+}
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .main-content {
+    padding: 12px;
+  }
+
+  .right-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* Fix for the footer to ensure it sticks to the bottom */
+footer {
+  background-color: #000000;
+  border-top: 1px solid #222;
+  margin-top: auto;
+}

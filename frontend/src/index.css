@@ -28,10 +28,12 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #000000;
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
 }
 
 h1 {
@@ -132,6 +134,9 @@ button:focus-visible {
     @apply border-border;
   }
   body {
-    @apply bg-background text-white;
+    @apply bg-black text-white;
+  }
+  #root {
+    @apply bg-black;
   }
 }
