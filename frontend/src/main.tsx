@@ -11,6 +11,10 @@ if (!window.Buffer) {
   window.Buffer = Buffer;
 }
 
+// Set initial background color
+document.body.style.backgroundColor = '#000000';
+document.documentElement.style.backgroundColor = '#000000';
+
 const container = document.getElementById('root');
 
 if (container) {
