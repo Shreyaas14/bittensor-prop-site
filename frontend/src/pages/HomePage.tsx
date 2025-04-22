@@ -3,7 +3,18 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 
-// TAO logo component based on the SVG paths we see in the screenshot
+// Subtle texture overlay component
+const TextureOverlay: React.FC = () => (
+  <div 
+    className="absolute inset-0 pointer-events-none opacity-10"
+    style={{
+      backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"4\" height=\"4\"%3E%3Cpath d=\"M1 3h1v1H1V3zm2-2h1v1H3V1z\" fill=\"%23ffffff\" fill-opacity=\".1\"%3E%3C/path%3E%3C/svg%3E')",
+      backgroundRepeat: "repeat"
+    }}
+  />
+);
+
+// Enhanced TAO logo component with improved animations
 const TaoLogo: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
   const logoAnimation = useAnimation();
@@ -11,15 +22,17 @@ const TaoLogo: React.FC = () => {
   useEffect(() => {
     if (isHovered) {
       logoAnimation.start({
-        filter: "drop-shadow(0 0 15px rgba(255, 255, 255, 0.8))",
+        filter: "drop-shadow(0 0 20px rgba(255, 255, 255, 0.8))",
         scale: 1.05,
-        transition: { duration: 0.3 }
+        rotate: 2,
+        transition: { duration: 0.4 }
       });
     } else {
       logoAnimation.start({
-        filter: "drop-shadow(0 0 10px rgba(255, 255, 255, 0.4))",
+        filter: "drop-shadow(0 0 12px rgba(255, 255, 255, 0.4))",
         scale: 1,
-        transition: { duration: 0.3 }
+        rotate: 0,
+        transition: { duration: 0.4 }
       });
     }
   }, [isHovered, logoAnimation]);
@@ -31,6 +44,9 @@ const TaoLogo: React.FC = () => {
       viewBox="0 0 34.44 36.91"
       className="w-60 h-60 mx-auto cursor-pointer"
       animate={logoAnimation}
+      initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
+      whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -53,7 +69,7 @@ const TaoLogo: React.FC = () => {
   );
 };
 
-// Enhanced navigation button with better hover effects
+// Enhanced navigation button with updated styling to match app theme
 const NavButton: React.FC<{ to: string; children: React.ReactNode }> = ({ to, children }) => {
   return (
     <motion.div
@@ -64,8 +80,8 @@ const NavButton: React.FC<{ to: string; children: React.ReactNode }> = ({ to, ch
     >
       <Link 
         to={to} 
-        className="inline-block bg-transparent border border-white text-white font-medium rounded-lg px-8 py-3 
-                  hover:bg-opacity-20 hover:bg-white hover:text-white hover:border-opacity-80 hover:shadow-[0_0_15px_rgba(255,255,255,0.5)]
+        className="inline-block bg-transparent border border-white/15 text-white font-everett font-medium rounded-3xl px-8 py-3 
+                  hover:bg-white/5 hover:text-white hover:border-white/30 hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]
                   transition-all duration-300"
       >
         {children}
@@ -74,31 +90,39 @@ const NavButton: React.FC<{ to: string; children: React.ReactNode }> = ({ to, ch
   );
 };
 
-// Floating particle effect
+// Refined floating particle effect with more subtle appearance
 const FloatingParticles: React.FC = () => {
   const particles = [];
+  const colors = [
+    "rgba(255, 255, 255, 0.08)",
+    "rgba(45, 212, 191, 0.08)",
+    "rgba(167, 139, 250, 0.08)",
+    "rgba(14, 165, 233, 0.08)"
+  ];
   
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 25; i++) {
     const randomX = Math.random() * 100;
     const randomY = Math.random() * 100;
-    const size = Math.random() * 4 + 1;
+    const size = Math.random() * 3 + 1;
     const duration = Math.random() * 20 + 10;
     const delay = Math.random() * 5;
+    const color = colors[Math.floor(Math.random() * colors.length)];
     
     particles.push(
       <motion.div
         key={i}
-        className="absolute bg-white rounded-full opacity-20"
+        className="absolute rounded-full"
         style={{
           width: size,
           height: size,
           top: `${randomY}%`,
           left: `${randomX}%`,
+          backgroundColor: color
         }}
         animate={{
           y: [20, -20, 20],
           x: [10, -10, 10],
-          opacity: [0.1, 0.3, 0.1]
+          opacity: [0.05, 0.15, 0.05]
         }}
         transition={{
           duration: duration,
@@ -114,9 +138,9 @@ const FloatingParticles: React.FC = () => {
 };
 
 const HomePage: React.FC = () => {
-  // Set background to pure black
+  // Set background to match app theme
   useEffect(() => {
-    document.body.style.backgroundColor = '#000000';
+    document.body.style.backgroundColor = '#141414';
     
     return () => {
       document.body.style.backgroundColor = '';
@@ -142,20 +166,42 @@ const HomePage: React.FC = () => {
   }, []);
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black overflow-hidden">
+    <motion.div 
+      className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden"
+      style={{
+        background: "linear-gradient(to bottom, #141414, #0c0c0c)"
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Background floating particles */}
       <FloatingParticles />
       
+      {/* Texture overlay */}
+      <TextureOverlay />
+      
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[rgba(255,255,255,0.03)] pointer-events-none" />
+      
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center text-center px-4 relative z-10">
-        {/* Animated Logo */}
-        <TaoLogo />
+        {/* Animated Logo with parallax effect */}
+        <motion.div
+          initial={{ y: 0 }}
+          animate={{ y: [0, -5, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <TaoLogo />
+        </motion.div>
         
-        {/* Title with typewriter effect */}
+        {/* Title with typewriter effect and enhanced styling */}
         <motion.h1
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 1.5 }}
-          className="text-5xl font-medium text-white mb-4 h-16 relative"
+          className="text-5xl font-everett font-medium text-white mb-4 h-16 relative tracking-[0.01em]"
+          style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
         >
           <span>{displayedTitle}</span>
           <AnimatePresence>
@@ -164,28 +210,28 @@ const HomePage: React.FC = () => {
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute h-8 w-1 bg-white ml-1 inline-block"
+                className="absolute h-8 w-1 bg-[#2dd4bf] ml-1 inline-block"
                 style={{ top: '50%', transform: 'translateY(-50%)' }}
               />
             )}
           </AnimatePresence>
         </motion.h1>
         
-        {/* Subtitle with glow effect */}
+        {/* Subtitle with enhanced hover effect */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 2.4 }}
           whileHover={{ 
-            textShadow: "0 0 8px rgba(255,255,255,0.8)",
+            textShadow: "0 0 8px rgba(45,212,191,0.8)",
             scale: 1.02
           }}
-          className="text-xl text-white opacity-80 mb-12 max-w-xl mx-auto transition-all duration-300"
+          className="text-xl font-everett text-white/80 mb-12 max-w-xl mx-auto transition-all duration-300 leading-[1.6]"
         >
           Decentralized Governance for the Bittensor Network
         </motion.p>
         
-        {/* Navigation Buttons - Added Create Proposal */}
+        {/* Navigation Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -195,10 +241,9 @@ const HomePage: React.FC = () => {
           <NavButton to="/proposals">Proposals</NavButton>
           <NavButton to="/demo">Demo</NavButton>
           <NavButton to="/whitepaper">White Paper</NavButton>
-          <NavButton to="/proposals/create">Create Proposal</NavButton>
         </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

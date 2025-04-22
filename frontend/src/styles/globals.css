@@ -9,37 +9,93 @@
   /* Main Colors */
   --black: #000000;
   --white: #FFFFFF;
-  --grey: #141414;
+  
+  /* Background Colors */
+  --background: #141414;
+  --background-secondary: #252525;
+  --background-tertiary: #1E1E1E;
+  
+  /* Card Colors */
+  --card-background: #252525;
+  --card-hover: #2E2E2E;
+  --card-active: #323232;
+  
+  /* Text Colors */
+  --text-primary: rgb(255, 255, 255);
+  --text-secondary: rgb(217, 217, 217);
+  --text-muted: rgb(144, 144, 144);
+  
+  /* Brand Colors */
   --teal: #00DBBC;
+  --teal-hover: #00C2A6;
+  --teal-dark: #00A58D;
+  --teal-light: #4AECD4;
+  --teal-bg: rgba(0, 219, 188, 0.1);
   
   /* Gradient Colors */
   --gradient-teal: #00DBBC;
   --gradient-orange: #FF8B25;
   --gradient-brown: #7D6250;
   
-  /* Background Colors */
-  --background: #0C0C0C;
-  --background-secondary: #141414;
-  --card-background: #191919;
-  --card-hover: #202020;
-  
   /* Border Colors */
-  --border: #2b2b2b;
+  --border: #2B2B2B;
+  --border-focus: #4D4D4D;
+  --border-hover: #3A3A3A;
   
-  /* Text Colors */
-  --text-primary: #FFFFFF;
-  --text-secondary: #AAAAAA;
-  --text-muted: #888888;
+  /* Semantic Colors */
+  --error: #E53935;
+  --error-dark: #C62828;
+  --error-light: #FFCDD2;
+  --error-bg: rgba(229, 57, 53, 0.1);
   
-  /* Chart Colors */
-  --chart-line: #00DBBC;
-  --chart-volume: #3A3A3A;
-  --chart-positive: #00DBBC;
-  --chart-negative: #FF8B25;
+  --warning: #FF8B25;
+  --warning-dark: #EF6C00;
+  --warning-light: #FFE0B2;
+  --warning-bg: rgba(255, 139, 37, 0.1);
   
-  /* Special Elements */
-  --dropdown-bg: #1A1A1A;
-  --tooltip-bg: #2A2A2A;
+  --success: #00DBBC;
+  --success-dark: #00A58D;
+  --success-light: #B3F0E8;
+  --success-bg: rgba(0, 219, 188, 0.1);
+  
+  /* Input Colors */
+  --input-bg: #1E1E1E;
+  --input-border: #2B2B2B;
+  --input-focus: #00DBBC;
+  --input-placeholder: rgb(144, 144, 144);
+  
+  /* Spacing */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+  
+  /* Border Radius */
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius-md: 0.5rem;   /* 8px */
+  --radius-lg: 0.75rem;  /* 12px */
+  --radius-xl: 1rem;     /* 16px */
+  --radius-2xl: 1.5rem;  /* 24px */
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-focus: 0 0 0 3px rgba(0, 219, 188, 0.35);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 20, 20, 20;
+  --background-end-rgb: 20, 20, 20;
 }
 
 * {
@@ -50,6 +106,7 @@
 }
 
 html, body {
+  font-family: 'Everett', 'Inter', system-ui, sans-serif;
   background-color: var(--background);
   color: var(--text-primary);
   font-size: 16px;
@@ -66,44 +123,50 @@ html, body {
 /* Typography */
 h1, .display-large {
   font-size: 4rem;
-  line-height: 4.875rem;
+  line-height: 1.1;
   letter-spacing: -0.06em;
   font-weight: 500;
+  margin-bottom: 1.5rem;
 }
 
 h2, .display-medium {
   font-size: 3rem;
-  line-height: 3.75rem;
+  line-height: 1.2;
   letter-spacing: -0.06em;
   font-weight: 500;
+  margin-bottom: 1.25rem;
 }
 
 h3, .display-small {
   font-size: 2.5rem;
-  line-height: 3rem;
-  letter-spacing: -0.06em;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
   font-weight: 500;
+  margin-bottom: 1rem;
 }
 
 h4, .header-large {
-  font-size: 2.25rem;
-  line-height: 2.75rem;
-  letter-spacing: -0.06em;
-  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  margin-bottom: 1rem;
 }
 
 h5, .header-medium {
   font-size: 1.5rem;
-  line-height: 1.813rem;
-  letter-spacing: -0.03em;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
   font-weight: 500;
+  margin-bottom: 0.75rem;
 }
 
 h6, .header-small {
   font-size: 1.25rem;
-  line-height: 1.5rem;
-  letter-spacing: -0.03em;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
   font-weight: 500;
+  margin-bottom: 0.5rem;
 }
 
 .header-xs {
@@ -333,4 +396,37 @@ tr:hover {
   .outline-ring {
     outline: 2px solid var(--outline-ring);
   }
+}
+
+/* Import TWK Everett font */
+@font-face {
+  font-family: 'TWK Everett';
+  src: url('/fonts/TWKEverett-Regular.woff2') format('woff2'),
+       url('/fonts/TWKEverett-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TWK Everett';
+  src: url('/fonts/TWKEverett-Medium.woff2') format('woff2'),
+       url('/fonts/TWKEverett-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TWK Everett';
+  src: url('/fonts/TWKEverett-Bold.woff2') format('woff2'),
+       url('/fonts/TWKEverett-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Apply TWK Everett as the default font */
+body {
+  font-family: 'TWK Everett', sans-serif;
 }

@@ -7,54 +7,85 @@ module.exports = {
 	theme: {
 	  extend: {
 		fontFamily: {
-		  sans: ['Everett', 'sans-serif'],
+		  sans: ['Everett', 'system-ui', 'sans-serif'],
+		  code: ['Fira Code', 'monospace'],
+		  'everett': ['Everett', 'Inter', 'system-ui', 'sans-serif'],
 		},
 		colors: {
 		  // Base colors
 		  black: '#000000',
 		  white: '#FFFFFF',
-		  grey: '#141414',
-		  teal: '#00DBBC',
-		  
-		  // Gradient colors
-		  'gradient-teal': '#00DBBC',
-		  'gradient-orange': '#FF8B25',
-		  'gradient-brown': '#7D6250',
 		  
 		  // Background colors
 		  background: {
-			DEFAULT: '#0C0C0C',
-			secondary: '#141414',
+			DEFAULT: '#141414',
+			secondary: '#252525',
+			tertiary: '#1E1E1E',
 		  },
+		  
+		  // Card colors
 		  card: {
-			DEFAULT: '#191919',
-			hover: '#202020',
+			DEFAULT: '#252525',
+			hover: '#2E2E2E',
+			active: '#323232',
 		  },
 		  
 		  // Text colors
 		  text: {
-			primary: '#FFFFFF',
-			secondary: '#AAAAAA',
-			muted: '#888888',
+			primary: 'rgb(255, 255, 255)',
+			secondary: 'rgb(217, 217, 217)',
+			muted: 'rgb(144, 144, 144)',
+		  },
+		  
+		  // Brand colors
+		  teal: {
+			DEFAULT: '#00DBBC',
+			hover: '#00C2A6',
+			dark: '#00A58D',
+			light: '#4AECD4',
+			bg: 'rgba(0, 219, 188, 0.1)',
+		  },
+		  
+		  // Accent colors
+		  gradient: {
+			teal: '#00DBBC',
+			orange: '#FF8B25',
+			brown: '#7D6250',
 		  },
 		  
 		  // Border colors
-		  border: '#2b2b2b',
-		  
-		  // Chart colors
-		  chart: {
-			line: '#00DBBC',
-			volume: '#3A3A3A',
-			positive: '#00DBBC',
-			negative: '#FF8B25',
+		  border: {
+			DEFAULT: '#2B2B2B',
+			focus: '#4D4D4D',
+			hover: '#3A3A3A',
 		  },
 		  
-		  // Special elements
-		  dropdown: {
-			bg: '#1A1A1A',
+		  // Semantic colors
+		  error: {
+			DEFAULT: '#E53935',
+			dark: '#C62828',
+			light: '#FFCDD2',
+			bg: 'rgba(229, 57, 53, 0.1)',
 		  },
-		  tooltip: {
-			bg: '#2A2A2A',
+		  warning: {
+			DEFAULT: '#FF8B25',
+			dark: '#EF6C00',
+			light: '#FFE0B2',
+			bg: 'rgba(255, 139, 37, 0.1)',
+		  },
+		  success: {
+			DEFAULT: '#00DBBC',
+			dark: '#00A58D',
+			light: '#B3F0E8',
+			bg: 'rgba(0, 219, 188, 0.1)',
+		  },
+		  
+		  // Input colors
+		  input: {
+			bg: '#1E1E1E',
+			border: '#2B2B2B',
+			focus: '#00DBBC',
+			placeholder: 'rgb(144, 144, 144)',
 		  },
 		},
 		fontSize: {

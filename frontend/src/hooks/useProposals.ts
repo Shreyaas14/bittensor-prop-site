@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client';
 export interface Proposal {
   _id: string;
   content: {
-    title: string; // New field
+    title: string;
     summary: string;
     abstract: string;
     fullProposal: string;
@@ -16,7 +16,8 @@ export interface Proposal {
     abstain: number;
     total_votes: number;
   };
-  walletAddress: string; // New field
+  walletAddress: string;
+  created_at?: string;
 }
 
 export const useProposals = () => {
@@ -25,18 +26,34 @@ export const useProposals = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProposals()
-      .then((data: Proposal[]) => {
+    const getProposals = async () => {
+      try {
+        const data = await fetchProposals();
         setProposals(data);
         setLoading(false);
-      })
-      .catch((err: any) => {
+      } catch (err: any) {
+        console.error("Error in useProposals:", err);
         setError(err.message || "Error fetching proposals");
         setLoading(false);
-      });
+      }
+    };
 
-    const socket: Socket = io('http://localhost:5001');
+    getProposals();
+
+    // Set up socket connection
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
+    const socket: Socket = io(socketUrl);
+    
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+    });
+    
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+    });
+    
     socket.on('proposalCreated', (newProposal: Proposal) => {
+      console.log('New proposal received:', newProposal);
       setProposals((prev) => [...prev, newProposal]);
     });
 

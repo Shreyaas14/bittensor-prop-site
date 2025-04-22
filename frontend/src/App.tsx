@@ -16,14 +16,14 @@ import '@/styles/globals.css';
 import { AppContextProvider } from './contexts/AppContext'; 
 
 // Global Layout for pages to ensure proper structure
-const PageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const PageLayout: React.FC<{ children: React.ReactNode, showFooter?: boolean }> = ({ children, showFooter = true }) => {
   return (
-    <div className="min-h-screen flex flex-col bg-black">
+    <div className="min-h-screen flex flex-col bg-[#141414]">
       <Navbar />
-      <div className="flex-grow flex flex-col bg-black min-h-[calc(100vh-theme(spacing.header)-theme(spacing.footer))] pt-16">
+      <div className="flex-grow flex flex-col bg-[#141414]">
         {children}
       </div>
-      <Footer />
+      {showFooter && <Footer />}
     </div>
   );
 };
@@ -35,13 +35,13 @@ const SidebarLayout: React.FC<{
   rightPanel?: React.ReactNode;
 }> = ({ sidebar, main, rightPanel }) => {
   return (
-    <div className="flex flex-1 h-full min-h-[calc(100vh-9rem)] bg-black">
+    <div className="flex flex-1 h-full min-h-[calc(100vh-9rem)] bg-[#141414]">
       {sidebar}
-      <main className="flex-1 overflow-auto p-0 bg-black">{main}</main>
+      <main className="flex-1 overflow-auto p-0 bg-[#141414]">{main}</main>
       {rightPanel ? (
-        <aside className="w-80 border-l border-[#222] flex flex-col bg-black">{rightPanel}</aside>
+        <aside className="w-80 border-l border-[#222] flex flex-col bg-[#141414]">{rightPanel}</aside>
       ) : (
-        <aside className="w-0 lg:w-80 transition-all duration-300 border-l border-[#222] bg-black"></aside>
+        <aside className="w-0 lg:w-80 transition-all duration-300 border-l border-[#222] bg-[#141414]"></aside>
       )}
     </div>
   );
@@ -56,7 +56,7 @@ const AppContent: React.FC<{ onWalletConnect: (address: string | null, taoBalanc
   // Show loading state
   if (loading) {
     return (
-      <PageLayout>
+      <PageLayout showFooter={false}>
         <div className="flex-grow flex items-center justify-center">
           <motion.div 
             className="flex flex-col items-center"
@@ -74,7 +74,7 @@ const AppContent: React.FC<{ onWalletConnect: (address: string | null, taoBalanc
   // Show error state
   if (error) {
     return (
-      <PageLayout>
+      <PageLayout showFooter={false}>
         <div className="flex-grow flex items-center justify-center p-4">
           <div className="bg-[#171717] border border-[#333] rounded-lg p-6 max-w-md">
             <div className="flex flex-col items-center text-center">
@@ -105,7 +105,7 @@ const AppContent: React.FC<{ onWalletConnect: (address: string | null, taoBalanc
     <AnimatePresence mode="wait">
       <Routes>
         {/* Home Page */}
-        <Route path="/" element={<PageLayout><HomePage /></PageLayout>} />
+        <Route path="/" element={<PageLayout showFooter={false}><HomePage /></PageLayout>} />
         
         {/* Proposal Creation */}
         <Route path="/proposals/create" element={
@@ -123,22 +123,22 @@ const AppContent: React.FC<{ onWalletConnect: (address: string | null, taoBalanc
               sidebar={<Sidebar proposals={proposals} />}
               main={
                 <div className="flex flex-col h-full">
-                  <div className="p-6 sm:p-8 border-b border-white/10 bg-black sticky top-0 z-10">
+                  <div className="p-6 sm:p-8 border-b border-white/10 bg-[#141414] sticky top-0 z-10">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>
-                        <h1 className="text-3xl sm:text-4xl text-white font-medium mb-2">Governance Proposals</h1>
+                        <h1 className="text-3xl sm:text-4xl text-white font-everett font-medium mb-2">Governance Proposals</h1>
                         <p className="text-gray-400 text-sm sm:text-base">Select a proposal from the sidebar to view details and vote.</p>
                       </div>
                       <button 
                         onClick={() => window.location.href = "/proposals/create"}
-                        className="flex items-center gap-2 px-4 py-2 bg-teal text-black font-medium rounded-md hover:bg-teal/90 transition-all duration-200 hover:shadow-[0_0_10px_rgba(0,219,188,0.3)] whitespace-nowrap"
+                        className="flex items-center gap-2 px-4 py-2 bg-[#141414] text-white font-medium rounded-md border border-white/20 hover:bg-[#141414]/80 transition-all duration-200 hover:shadow-[0_0_10px_rgba(255,255,255,0.2)] whitespace-nowrap"
                       >
                         <span>+</span> Create Proposal
                       </button>
                     </div>
                   </div>
                   
-                  <div className="flex-1 p-8 flex items-center justify-center bg-black">
+                  <div className="flex-1 p-8 flex items-center justify-center bg-[#141414]">
                     <div className="flex flex-col items-center justify-center max-w-md text-center">
                       <svg
                         className="w-16 h-16 mb-4 text-gray-600"
@@ -257,23 +257,23 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Apply black background to both body and html elements for consistent appearance
-    document.body.style.backgroundColor = '#000000';
-    document.documentElement.style.backgroundColor = '#000000';
+    // Apply #141414 background to both body and html elements for consistent appearance
+    document.body.style.backgroundColor = '#141414';
+    document.documentElement.style.backgroundColor = '#141414';
     
     // Also add a class to ensure styling is consistent
-    document.body.classList.add('bg-black');
+    document.body.classList.add('bg-[#141414]');
     
     return () => {
       document.body.style.backgroundColor = '';
       document.documentElement.style.backgroundColor = '';
-      document.body.classList.remove('bg-black');
+      document.body.classList.remove('bg-[#141414]');
     };
   }, []);
 
   return (
     <Router>
-      <AppContextProvider value={{ walletAddress, taoBalance }}>
+      <AppContextProvider value={{ walletAddress, taoBalance, setWalletAddress, setTaoBalance }}>
         <AppContent onWalletConnect={handleWalletConnect} />
       </AppContextProvider>
     </Router>

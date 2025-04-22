@@ -11,9 +11,15 @@ if (!window.Buffer) {
   window.Buffer = Buffer;
 }
 
-// Set initial background color
-document.body.style.backgroundColor = '#000000';
-document.documentElement.style.backgroundColor = '#000000';
+// Set initial background color to #141414 instead of black
+document.body.style.backgroundColor = '#141414';
+document.documentElement.style.backgroundColor = '#141414';
+
+// Add Google Fonts dynamically
+const linkElement = document.createElement('link');
+linkElement.rel = 'stylesheet';
+linkElement.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap';
+document.head.appendChild(linkElement);
 
 const container = document.getElementById('root');
 

@@ -6,6 +6,7 @@ import { useSocket } from "@/hooks/useSocket";
 import WalletConnectButton from "@/components/ui/WalletConnectButton";
 import { FaClock, FaCheckCircle, FaMinusCircle, FaTimesCircle } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAppContext } from "@/contexts/AppContext";
 
 interface VotingStats {
   yes: number;
@@ -29,11 +30,11 @@ interface VotingPanelProps {
 const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: initialVotingStats, dates }) => {
   const { vote, loading, error } = useVote(proposalId);
   const socket = useSocket();
-  const [account, setAccount] = useState<string | null>(null);
+  const { walletAddress, taoBalance } = useAppContext();
   const [votingStats, setVotingStats] = useState<VotingStats>(initialVotingStats);
   const [hasVoted, setHasVoted] = useState<boolean>(false);
   const [selectedVote, setSelectedVote] = useState<"yes" | "no" | "abstain" | null>(null);
-  const [taoBalance, setTaoBalance] = useState<number>(0);
+  const [showWalletAlert, setShowWalletAlert] = useState<boolean>(false);
   
   // Calculate the timeline directly using the dates prop
   const timeline = {
@@ -65,17 +66,24 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   }, [socket, proposalId]);
 
   const handleVote = async (voteType: "yes" | "no" | "abstain") => {
-    if (!account) {
-      alert("Please connect your wallet first!");
+    if (!walletAddress) {
+      setShowWalletAlert(true);
       return;
     }
     if (hasVoted) return;
-    if (taoBalance <= 0) {
+    
+    // Special case for hardcoded wallet address - allow voting without TAO
+    const hardcodedWallet = "5EefNBdLJjKWd2LrX8EzrucPHVBd4FyNmvY925NsQQQJzgC4";
+    
+    if (taoBalance <= 0 && walletAddress !== hardcodedWallet) {
       alert("You need TAO tokens to vote. Your current balance is 0.");
       return;
     }
 
-    const result = await vote(voteType, account, taoBalance);
+    // Set a default vote weight of 1 if this is the hardcoded wallet with 0 balance
+    const voteWeight = (walletAddress === hardcodedWallet && taoBalance <= 0) ? 1 : taoBalance;
+
+    const result = await vote(voteType, walletAddress, voteWeight);
     if (result) {
       // Update local state
       setSelectedVote(voteType);
@@ -85,11 +93,10 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
       const votedProposals = JSON.parse(localStorage.getItem("votedProposals") || "{}");
       votedProposals[proposalId] = true;
       votedProposals[proposalId + "_type"] = voteType;
-      votedProposals[proposalId + "_weight"] = taoBalance;
+      votedProposals[proposalId + "_weight"] = voteWeight;
       localStorage.setItem("votedProposals", JSON.stringify(votedProposals));
       
       // Update voting stats locally to provide immediate feedback
-      const voteWeight = taoBalance;
       setVotingStats(prev => {
         const newStats = { ...prev };
         newStats[voteType] += voteWeight;
@@ -144,296 +151,347 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
 
   // Handle wallet connection
   const handleWalletConnect = (address: string | null, balance: number) => {
-    setAccount(address);
-    setTaoBalance(balance);
+    // We don't need this anymore as we're using the global context
+    // setAccount(address);
+    // setTaoBalance(balance);
   };
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4 }}
-      className="flex flex-col flex-1 bg-background-secondary border-l border-border overflow-hidden"
+      className="w-full h-full bg-[#141414] rounded-2xl overflow-hidden shadow-lg font-['TWK_Everett']"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
     >
-      {/* Header */}
-      <motion.div 
-        className="p-4 border-b border-border sticky top-0 z-10 bg-background-secondary"
-        initial={{ y: -10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div className="flex justify-between items-center">
-          <h2 className="text-header-sm font-medium text-white">Cast Vote</h2>
+      {/* Wallet Connect Alert Modal */}
+      <AnimatePresence>
+        {showWalletAlert && (
           <motion.div 
-            className="flex items-center gap-2 bg-background px-3 py-1 rounded-full"
-            animate={{ 
-              scale: [1, 1.03, 1],
-              backgroundColor: ["rgba(12, 12, 12, 0.8)", "rgba(0, 219, 188, 0.1)", "rgba(12, 12, 12, 0.8)"]
-            }}
-            transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowWalletAlert(false)}
           >
-            <FaClock className="text-teal" size={12} />
-            <span className="text-teal text-label-sm">{getTimeRemaining()}</span>
+            <motion.div 
+              className="bg-[#1A1A1A] rounded-2xl p-6 max-w-md w-full shadow-xl border border-gray-800"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center mr-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#00DBBC]">
+                    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path>
+                    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path>
+                    <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path>
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-white">Connect Wallet</h3>
+                <button 
+                  className="ml-auto text-gray-400 hover:text-white"
+                  onClick={() => setShowWalletAlert(false)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-300 mb-6">Please connect your wallet to cast a vote on this proposal.</p>
+              <div className="flex flex-col gap-4">
+                {/* WalletConnectButton with better styling */}
+                <div className="w-full">
+                  <WalletConnectButton 
+                    onConnect={(address, balance) => {
+                      // Close the modal when wallet is connected
+                      setShowWalletAlert(false);
+                    }} 
+                  />
+                </div>
+                
+                <motion.button
+                  className="w-full py-3 px-4 bg-[#1E1E1E] text-gray-300 rounded-xl font-medium text-sm border border-gray-700 hover:text-white hover:border-gray-500 transition-colors duration-200"
+                  whileHover={{ scale: 1.02, backgroundColor: "#252525" }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowWalletAlert(false)}
+                >
+                  Cancel
+                </motion.button>
+              </div>
+            </motion.div>
           </motion.div>
-        </div>
-      </motion.div>
-      
-      {/* Voting Section - Add scrollable container */}
-      <div className="flex-1 overflow-y-auto h-full">
-        <div className="p-4">
-          {!account ? (
-            <motion.div 
-              className="mb-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col h-full">
+        <div className="p-6">
+          <h2 className="text-xl font-medium text-white mb-6">Cast Your Vote</h2>
+        
+          {/* Voting Options */}
+          <div className="space-y-4 mb-6">
+            <motion.button
+              className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
+                selectedVote === "yes" 
+                  ? "bg-[#00DBBC]/10 border border-[#00DBBC] text-[#00DBBC]" 
+                  : "bg-[#1A1A1A] text-white hover:border-[#00DBBC]/50 hover:bg-[#00DBBC]/5"
+              }`}
+              onClick={() => setSelectedVote("yes")}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              disabled={hasVotingEnded() || hasVoted}
             >
-              <p className="text-text-secondary mb-4">Connect your wallet to cast your vote on this proposal.</p>
-              <WalletConnectButton onConnect={handleWalletConnect} />
-            </motion.div>
-          ) : (
-            <motion.div 
-              className="space-y-3"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              {/* Connected wallet info */}
-              <motion.div 
-                className="p-3 rounded-lg bg-card border border-border mb-6"
-                whileHover={{ 
-                  boxShadow: "0 0 8px rgba(0, 219, 188, 0.2)",
-                  borderColor: "rgba(0, 219, 188, 0.5)"
-                }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-label-md text-text-secondary">Connected Wallet</span>
-                  {hasVoted && (
-                    <motion.span 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="text-label-xs text-white"
-                    >
-                      Voted
-                    </motion.span>
+              <span className="flex items-center">
+                <motion.span 
+                  className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                    selectedVote === "yes" ? "border-[#00DBBC]" : "border-gray-600"
+                  }`}
+                >
+                  {selectedVote === "yes" && (
+                    <motion.div 
+                      className="w-2.5 h-2.5 rounded-full bg-[#00DBBC]"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                    />
                   )}
-                </div>
-                <div className="font-mono text-label-md text-white truncate">
-                  {account.substring(0, 8)}...{account.substring(account.length - 6)}
-                </div>
-                <div className="mt-2 flex items-baseline">
-                  <span className="text-label-lg font-medium text-white">{taoBalance}</span>
-                  <span className="text-label-sm text-text-secondary ml-1">τ</span>
-                </div>
-              </motion.div>
-              
-              {/* For */}
-              <motion.button 
-                onClick={() => !hasVoted && isVotingActive && handleVote("yes")}
-                disabled={hasVoted || !isVotingActive}
-                whileHover={!hasVoted && isVotingActive ? { scale: 1.02, boxShadow: "0 0 10px rgba(0, 219, 188, 0.3)" } : {}}
-                whileTap={!hasVoted && isVotingActive ? { scale: 0.98 } : {}}
-                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors
-                  ${selectedVote === "yes" 
-                    ? "bg-card border-teal" 
-                    : "bg-card border-border hover:border-teal"}
-                  ${(hasVoted && selectedVote !== "yes") || !isVotingActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              >
-                <div className="flex items-center">
-                  <FaCheckCircle className="text-teal mr-2" size={16} />
-                  <span className="text-white">For</span>
-                </div>
-                <div className="flex items-baseline">
-                  <motion.span 
-                    className="text-label-md text-teal font-medium mr-1"
-                    animate={selectedVote === "yes" ? { 
-                      scale: [1, 1.1, 1],
-                    } : {}}
-                    transition={{ duration: 1, repeat: selectedVote === "yes" ? 1 : 0 }}
-                  >
-                    {votingStats.yes}
-                  </motion.span>
-                  <span className="text-label-sm text-teal">({yesPercentage.toFixed(1)}%)</span>
-                </div>
-              </motion.button>
-              
-              {/* Against */}
-              <motion.button 
-                onClick={() => !hasVoted && isVotingActive && handleVote("no")}
-                disabled={hasVoted || !isVotingActive}
-                whileHover={!hasVoted && isVotingActive ? { scale: 1.02, boxShadow: "0 0 10px rgba(255, 139, 37, 0.3)" } : {}}
-                whileTap={!hasVoted && isVotingActive ? { scale: 0.98 } : {}}
-                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors
-                  ${selectedVote === "no" 
-                    ? "bg-card border-gradient-orange" 
-                    : "bg-card border-border hover:border-gradient-orange"}
-                  ${(hasVoted && selectedVote !== "no") || !isVotingActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              >
-                <div className="flex items-center">
-                  <FaTimesCircle className="text-gradient-orange mr-2" size={16} />
-                  <span className="text-white">Against</span>
-                </div>
-                <div className="flex items-baseline">
-                  <motion.span 
-                    className="text-label-md text-gradient-orange font-medium mr-1"
-                    animate={selectedVote === "no" ? { 
-                      scale: [1, 1.1, 1],
-                    } : {}}
-                    transition={{ duration: 1, repeat: selectedVote === "no" ? 1 : 0 }}
-                  >
-                    {votingStats.no}
-                  </motion.span>
-                  <span className="text-label-sm text-gradient-orange">({noPercentage.toFixed(1)}%)</span>
-                </div>
-              </motion.button>
-              
-              {/* Abstain */}
-              <motion.button 
-                onClick={() => !hasVoted && isVotingActive && handleVote("abstain")}
-                disabled={hasVoted || !isVotingActive}
-                whileHover={!hasVoted && isVotingActive ? { scale: 1.02, boxShadow: "0 0 10px rgba(170, 170, 170, 0.2)" } : {}}
-                whileTap={!hasVoted && isVotingActive ? { scale: 0.98 } : {}}
-                className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors
-                  ${selectedVote === "abstain" 
-                    ? "bg-card border-text-secondary" 
-                    : "bg-card border-border hover:border-text-secondary"}
-                  ${(hasVoted && selectedVote !== "abstain") || !isVotingActive ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              >
-                <div className="flex items-center">
-                  <FaMinusCircle className="text-text-secondary mr-2" size={16} />
-                  <span className="text-white">Abstain</span>
-                </div>
-                <div className="flex items-baseline">
-                  <motion.span 
-                    className="text-label-md text-text-secondary font-medium mr-1"
-                    animate={selectedVote === "abstain" ? { 
-                      scale: [1, 1.1, 1],
-                    } : {}}
-                    transition={{ duration: 1, repeat: selectedVote === "abstain" ? 1 : 0 }}
-                  >
-                    {votingStats.abstain}
-                  </motion.span>
-                  <span className="text-label-sm text-text-secondary">({abstainPercentage.toFixed(1)}%)</span>
-                </div>
-              </motion.button>
-            </motion.div>
-          )}
+                </motion.span>
+                Yes
+              </span>
+              {selectedVote === "yes" && (
+                <motion.svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </motion.svg>
+              )}
+            </motion.button>
+            
+            <motion.button
+              className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
+                selectedVote === "no" 
+                  ? "bg-[#EB5347]/10 border border-[#EB5347] text-[#EB5347]" 
+                  : "bg-[#1A1A1A] text-white hover:border-[#EB5347]/50 hover:bg-[#EB5347]/5"
+              }`}
+              onClick={() => setSelectedVote("no")}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              disabled={hasVotingEnded() || hasVoted}
+            >
+              <span className="flex items-center">
+                <motion.span 
+                  className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                    selectedVote === "no" ? "border-[#EB5347]" : "border-gray-600"
+                  }`}
+                >
+                  {selectedVote === "no" && (
+                    <motion.div 
+                      className="w-2.5 h-2.5 rounded-full bg-[#EB5347]"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+                </motion.span>
+                No
+              </span>
+              {selectedVote === "no" && (
+                <motion.svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </motion.svg>
+              )}
+            </motion.button>
+            
+            <motion.button
+              className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
+                selectedVote === "abstain" 
+                  ? "bg-white/10 border border-white text-white" 
+                  : "bg-[#1A1A1A] text-white hover:border-white/50 hover:bg-white/5"
+              }`}
+              onClick={() => setSelectedVote("abstain")}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              disabled={hasVotingEnded() || hasVoted}
+            >
+              <span className="flex items-center">
+                <motion.span 
+                  className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                    selectedVote === "abstain" ? "border-white" : "border-gray-600"
+                  }`}
+                >
+                  {selectedVote === "abstain" && (
+                    <motion.div 
+                      className="w-2.5 h-2.5 rounded-full bg-white"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+                </motion.span>
+                Abstain
+              </span>
+              {selectedVote === "abstain" && (
+                <motion.svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </motion.svg>
+              )}
+            </motion.button>
+          </div>
+          
+          <motion.button
+            className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all duration-200 ${
+              !selectedVote || hasVoted || hasVotingEnded()
+                ? "bg-[#1A1A1A] text-gray-500 cursor-not-allowed"
+                : selectedVote === "yes"
+                ? "bg-[#00DBBC] text-black hover:bg-[#00DBBC]/90"
+                : selectedVote === "no"
+                ? "bg-[#EB5347] text-white hover:bg-[#EB5347]/90"
+                : "bg-white text-black hover:bg-white/90"
+            }`}
+            onClick={() => handleVote(selectedVote!)}
+            whileHover={!hasVoted && selectedVote && !hasVotingEnded() ? { scale: 1.02 } : {}}
+            whileTap={!hasVoted && selectedVote && !hasVotingEnded() ? { scale: 0.98 } : {}}
+            disabled={!selectedVote || hasVoted || hasVotingEnded()}
+          >
+            {hasVoted ? "Vote Cast" : hasVotingEnded() ? "Voting Ended" : "Cast Vote"}
+          </motion.button>
           
           {hasVoted && (
-            <AnimatePresence>
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="mt-4"
-              >
-                <motion.p 
-                  className="text-white flex items-center gap-2"
-                  animate={{ 
-                    color: ["rgba(255, 255, 255, 0.8)", "rgba(255, 255, 255, 1)", "rgba(255, 255, 255, 0.8)"] 
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <motion.span
-                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, 0] }}
-                    transition={{ duration: 1.5, repeat: 1 }}
-                  >
-                    <FaCheckCircle className="text-white" size={14} />
-                  </motion.span>
-                  <span className="text-label-md">Your vote has been recorded!</span>
-                </motion.p>
-              </motion.div>
-            </AnimatePresence>
+            <motion.div 
+              className="mt-3 text-center text-gray-400 text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              You voted {selectedVote === "yes" ? "Yes" : selectedVote === "no" ? "No" : "Abstain"}
+            </motion.div>
           )}
         </div>
-        
+
         {/* Results Section */}
         <motion.div 
-          className="p-4 border-t border-border"
+          className="p-6 bg-[#121212] mt-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          <h3 className="text-label-lg font-medium text-white mb-4">Results</h3>
+          <h3 className="text-lg font-medium text-white mb-5">Results</h3>
           
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* For */}
-            <div className="mb-4">
-              <div className="flex justify-between text-label-md mb-1">
-                <span className="text-text-secondary">For</span>
+            <div className="mb-5">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-400">For</span>
                 <motion.span 
-                  className="text-teal"
+                  className="text-[#00DBBC]"
                   animate={selectedVote === "yes" ? { scale: [1, 1.1, 1] } : {}}
                   transition={{ duration: 1, repeat: selectedVote === "yes" ? 1 : 0 }}
                 >
                   {yesPercentage.toFixed(1)}%
                 </motion.span>
               </div>
-              <motion.div className="relative h-1 w-full overflow-hidden rounded-full bg-background mb-1">
+              <motion.div className="relative h-[3px] w-full overflow-hidden rounded-full bg-[#1A1A1A] mb-1">
                 <motion.div 
-                  className="h-full bg-teal" 
+                  className="h-full bg-[#00DBBC]" 
                   initial={{ width: 0 }}
                   animate={{ width: `${yesPercentage}%` }}
                   transition={{ duration: 0.8, delay: 0.6 }}
                 ></motion.div>
               </motion.div>
-              <div className="text-label-sm text-text-secondary">{votingStats.yes} τ</div>
+              <div className="text-xs text-gray-400">{votingStats.yes} τ</div>
             </div>
             
             {/* Against */}
-            <div className="mb-4">
-              <div className="flex justify-between text-label-md mb-1">
-                <span className="text-text-secondary">Against</span>
+            <div className="mb-5">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-400">Against</span>
                 <motion.span 
-                  className="text-gradient-orange"
+                  className="text-[#EB5347]"
                   animate={selectedVote === "no" ? { scale: [1, 1.1, 1] } : {}}
                   transition={{ duration: 1, repeat: selectedVote === "no" ? 1 : 0 }}
                 >
                   {noPercentage.toFixed(1)}%
                 </motion.span>
               </div>
-              <motion.div className="relative h-1 w-full overflow-hidden rounded-full bg-background mb-1">
+              <motion.div className="relative h-[3px] w-full overflow-hidden rounded-full bg-[#1A1A1A] mb-1">
                 <motion.div 
-                  className="h-full bg-gradient-orange" 
+                  className="h-full bg-[#EB5347]" 
                   initial={{ width: 0 }}
                   animate={{ width: `${noPercentage}%` }}
                   transition={{ duration: 0.8, delay: 0.7 }}
                 ></motion.div>
               </motion.div>
-              <div className="text-label-sm text-text-secondary">{votingStats.no} τ</div>
+              <div className="text-xs text-gray-400">{votingStats.no} τ</div>
             </div>
             
             {/* Abstain */}
-            <div className="mb-4">
-              <div className="flex justify-between text-label-md mb-1">
-                <span className="text-text-secondary">Abstain</span>
+            <div className="mb-5">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-400">Abstain</span>
                 <motion.span 
-                  className="text-text-secondary"
+                  className="text-white"
                   animate={selectedVote === "abstain" ? { scale: [1, 1.1, 1] } : {}}
                   transition={{ duration: 1, repeat: selectedVote === "abstain" ? 1 : 0 }}
                 >
                   {abstainPercentage.toFixed(1)}%
                 </motion.span>
               </div>
-              <motion.div className="relative h-1 w-full overflow-hidden rounded-full bg-background mb-1">
+              <motion.div className="relative h-[3px] w-full overflow-hidden rounded-full bg-[#1A1A1A] mb-1">
                 <motion.div 
-                  className="h-full bg-text-secondary" 
+                  className="h-full bg-white" 
                   initial={{ width: 0 }}
                   animate={{ width: `${abstainPercentage}%` }}
                   transition={{ duration: 0.8, delay: 0.8 }}
                 ></motion.div>
               </motion.div>
-              <div className="text-label-sm text-text-secondary">{votingStats.abstain} τ</div>
+              <div className="text-xs text-gray-400">{votingStats.abstain} τ</div>
             </div>
             
             <motion.div 
-              className="pt-2 border-t border-border flex justify-between text-white"
+              className="pt-3 flex justify-between text-white"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.9 }}
             >
-              <span className="text-label-md">Total Votes</span>
+              <span className="text-sm">Total Votes</span>
               <div>
                 <motion.span 
                   className="font-medium"
@@ -444,7 +502,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
                 >
                   {votingStats.total_votes}
                 </motion.span>
-                <span className="text-text-secondary ml-1">τ</span>
+                <span className="text-gray-400 ml-1">τ</span>
               </div>
             </motion.div>
           </div>
@@ -452,51 +510,51 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
         
         {/* Timeline */}
         <motion.div 
-          className="p-4 border-t border-border"
+          className="p-6 bg-[#141414]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
         >
-          <h3 className="text-label-lg font-medium text-white mb-4">Timeline</h3>
+          <h3 className="text-lg font-medium text-white mb-5">Timeline</h3>
           
-          <div className="relative border-l-2 border-border pl-4 pb-4">
+          <div className="relative border-l border-[rgba(255,255,255,0.1)] pl-4 pb-4">
             {/* Created */}
             <motion.div 
-              className="mb-6 relative"
+              className="mb-8 relative"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.8 }}
             >
               <motion.div 
-                className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-white"
+                className="absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full bg-white"
                 animate={{ 
                   boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 5px rgba(255, 255, 255, 0.7)", "0 0 0px rgba(255, 255, 255, 0)"]
                 }}
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
               ></motion.div>
               <div className="ml-4">
-                <p className="text-label-md font-medium text-white">Created</p>
-                <p className="text-label-sm text-text-secondary">{formatDate(timeline.created)}</p>
+                <p className="text-sm font-medium text-white">Created</p>
+                <p className="text-xs text-gray-400">{formatDate(timeline.created)}</p>
               </div>
             </motion.div>
             
             {/* Voting Start */}
             <motion.div 
-              className="mb-6 relative"
+              className="mb-8 relative"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.9 }}
             >
               <motion.div 
-                className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-white"
+                className="absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full bg-white"
                 animate={{ 
                   boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 5px rgba(255, 255, 255, 0.7)", "0 0 0px rgba(255, 255, 255, 0)"]
                 }}
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", delay: 0.7 }}
               ></motion.div>
               <div className="ml-4">
-                <p className="text-label-md font-medium text-white">Voting Start</p>
-                <p className="text-label-sm text-text-secondary">{formatDate(timeline.start)}</p>
+                <p className="text-sm font-medium text-white">Voting Start</p>
+                <p className="text-xs text-gray-400">{formatDate(timeline.start)}</p>
               </div>
             </motion.div>
             
@@ -508,37 +566,39 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
               transition={{ delay: 1 }}
             >
               <motion.div 
-                className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-white ${hasVotingEnded() ? '' : 'opacity-70'}`}
+                className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${hasVotingEnded() ? 'bg-white' : 'bg-white/70'}`}
                 animate={hasVotingEnded() ? { 
                   boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 5px rgba(255, 255, 255, 0.7)", "0 0 0px rgba(255, 255, 255, 0)"]
                 } : {}}
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", delay: 1.4 }}
               ></motion.div>
               <div className="ml-4">
-                <p className="text-label-md font-medium text-white">Voting End</p>
-                <p className="text-label-sm text-text-secondary">{formatDate(timeline.end)}</p>
+                <p className="text-sm font-medium text-white">Voting End</p>
+                <p className="text-xs text-gray-400">{formatDate(timeline.end)}</p>
               </div>
             </motion.div>
             
             {/* Result (if voting has ended) */}
             {hasVotingEnded() && (
               <motion.div 
-                className="mt-6 relative"
+                className="mt-8 relative"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.2 }}
               >
                 <motion.div 
-                  className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-white"
+                  className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${didProposalPass() ? 'bg-[#00DBBC]' : 'bg-[#EB5347]'}`}
                   animate={{ 
-                    boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 8px rgba(255, 255, 255, 0.9)", "0 0 0px rgba(255, 255, 255, 0)"],
+                    boxShadow: didProposalPass() 
+                      ? ["0 0 0px rgba(0, 219, 188, 0)", "0 0 8px rgba(0, 219, 188, 0.9)", "0 0 0px rgba(0, 219, 188, 0)"]
+                      : ["0 0 0px rgba(235, 83, 71, 0)", "0 0 8px rgba(235, 83, 71, 0.9)", "0 0 0px rgba(235, 83, 71, 0)"],
                     scale: [1, 1.2, 1]
                   }}
                   transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
                 ></motion.div>
                 <div className="ml-4">
                   <motion.p
-                    className={`text-label-md font-medium ${didProposalPass() ? "text-white" : "text-gradient-orange"}`}
+                    className={`text-sm font-medium ${didProposalPass() ? "text-[#00DBBC]" : "text-[#EB5347]"}`}
                     animate={{ 
                       scale: [1, 1.05, 1]
                     }}
@@ -546,7 +606,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
                   >
                     {didProposalPass() ? "Passed" : "Failed"}
                   </motion.p>
-                  <p className="text-label-sm text-text-secondary">{formatDate(new Date())}</p>
+                  <p className="text-xs text-gray-400">{formatDate(new Date())}</p>
                 </div>
               </motion.div>
             )}

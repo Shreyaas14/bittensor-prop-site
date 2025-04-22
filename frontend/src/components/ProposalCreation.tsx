@@ -1,21 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createProposal } from '@/api/api';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaFileAlt, FaPen, FaUserAlt, FaTimes, FaArrowRight } from 'react-icons/fa';
+import { FaFileAlt, FaPen, FaUserAlt, FaTimes, FaArrowRight, FaCheck, FaExclamationCircle } from 'react-icons/fa';
 
-const ProposalCreation: React.FC = () => {
+// Define form field component to reduce repetition
+const FormField = ({ label, hint, children }) => (
+  <div className="mb-6">
+    <label className="block text-white font-medium mb-2">{label}</label>
+    {children}
+    {hint && <p className="mt-1 text-white/50 text-xs">{hint}</p>}
+  </div>
+);
+
+// Define form section component
+const FormSection = ({ title, icon, children }) => (
+  <div className="mb-8">
+    <div className="flex items-center mb-4">
+      <div className="p-2 bg-white/5 rounded-md mr-3">
+        {icon}
+      </div>
+      <h3 className="text-white text-lg font-medium">{title}</h3>
+    </div>
+    <div className="pl-2">
+      {children}
+    </div>
+  </div>
+);
+
+const ProposalCreation = () => {
+  // Use refs for direct DOM access
+  const titleRef = useRef(null);
+  const summaryRef = useRef(null);
+  const abstractRef = useRef(null);
+  const fullProposalRef = useRef(null);
+  const creatorRef = useRef(null);
+  
+  // State for form values
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [abstract, setAbstract] = useState('');
   const [fullProposal, setFullProposal] = useState('');
   const [creator, setCreator] = useState('');
+  
+  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Simple event handlers without useCallback
+  const handleTitleChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Title changing to:', newValue);
+    setTitle(newValue);
+  };
+
+  const handleSummaryChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Summary changing to:', newValue);
+    setSummary(newValue);
+  };
+
+  const handleAbstractChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Abstract changing to:', newValue);
+    setAbstract(newValue);
+  };
+
+  const handleFullProposalChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Full proposal changing to:', newValue);
+    setFullProposal(newValue);
+  };
+
+  const handleCreatorChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Creator changing to:', newValue);
+    setCreator(newValue);
+  };
+
+  // Debug effect to monitor state changes
+  useEffect(() => {
+    console.log('State updated:', { title, summary, abstract, fullProposal, creator });
+  }, [title, summary, abstract, fullProposal, creator]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setFormError(null);
+
+    // Basic validation
+    if (!title.trim() || !summary.trim() || !creator.trim()) {
+      setFormError("Please fill out all required fields");
+      setIsSubmitting(false);
+      return;
+    }
+
+    console.log('Submitting form with values:', { title, summary, abstract, fullProposal, creator });
 
     const proposalPayload = {
       content: { 
@@ -30,154 +112,223 @@ const ProposalCreation: React.FC = () => {
 
     try {
       const newProposal = await createProposal(proposalPayload);
+      console.log('Proposal created successfully:', newProposal);
+      
+      setSuccess(true);
+      
       setTimeout(() => {
-        navigate(`/proposals/${newProposal._id}`);
-      }, 500);
-    } catch (error: any) {
+        navigate(`/proposals/${newProposal._id || newProposal.id}`);
+      }, 1500);
+    } catch (error) {
       console.error('Error creating proposal:', error);
+      let errorMessage = 'Failed to create proposal. Please try again.';
+      
+      if (error.response) {
+        if (error.response.data && typeof error.response.data === 'object') {
+          errorMessage = error.response.data.message || error.response.data.error || errorMessage;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+      }
+      
+      setFormError(errorMessage);
       setIsSubmitting(false);
     }
   };
 
-  // Form section component for consistent styling
-  const FormSection = ({ 
-    title, 
-    icon, 
-    children 
-  }: { 
-    title: string; 
-    icon: React.ReactNode; 
-    children: React.ReactNode 
-  }) => (
-    <div className="mb-10">
-      <div className="flex items-center mb-5">
-        <div className="bg-[#111] border border-white/10 rounded-full p-3 mr-4">
-          {icon}
-        </div>
-        <h2 className="text-2xl text-white font-medium">{title}</h2>
+  // If success, show success message
+  if (success) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#141414]">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-b from-[#1c1c1c] to-[#181818] p-8 rounded-xl max-w-md w-full text-center border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+        >
+          <div className="w-16 h-16 bg-gradient-to-r from-teal to-teal/80 rounded-full flex items-center justify-center mx-auto mb-6">
+            <FaCheck className="text-black text-2xl" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Proposal Created!</h2>
+          <p className="text-white/70 mb-6">Your proposal has been successfully submitted.</p>
+          <p className="text-white/50 text-sm">Redirecting you to your proposal...</p>
+        </motion.div>
       </div>
-      <div className="pl-0 md:pl-14">
-        {children}
-      </div>
-    </div>
-  );
-
-  // Styled form field component
-  const FormField = ({ 
-    label, 
-    children, 
-    hint 
-  }: { 
-    label: string; 
-    children: React.ReactNode; 
-    hint?: string 
-  }) => (
-    <div className="mb-6">
-      <label className="block text-white mb-2 font-medium">{label}</label>
-      {children}
-      {hint && <p className="mt-2 text-gray-400 text-sm">{hint}</p>}
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 overflow-y-auto flex items-center justify-center p-4">
-      <div className="relative bg-background rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="w-full px-6 py-10">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-4xl text-white font-medium mb-2">Create Proposal</h1>
-              <p className="text-gray-400">Submit a new governance proposal for the community to vote on.</p>
-            </div>
-            <button
-              onClick={() => navigate('/proposals')}
-              className="flex items-center text-white/70 hover:text-white"
+    <div className="min-h-screen bg-[#141414] text-white font-everett">
+      <div className="container mx-auto py-10 px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <motion.h1 
+              className="text-4xl font-bold mb-2 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <FaTimes className="mr-2" />
-              <span>Cancel</span>
-            </button>
-          </div>
-
-          <div className="bg-[#111] rounded-lg border border-white/5 p-8">
+              Create a New Proposal
+            </motion.h1>
+            <motion.p 
+              className="text-white/60 mb-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              Submit your proposal for community consideration and voting.
+            </motion.p>
+            
+            {formError && (
+              <motion.div 
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-orange/10 border border-gradient-orange/30 text-gradient-orange p-4 rounded-lg mb-6 flex items-center"
+              >
+                <FaExclamationCircle className="mr-3 flex-shrink-0" size={18} />
+                {formError}
+              </motion.div>
+            )}
+            
             <form onSubmit={handleSubmit}>
-              <FormSection title="Proposal Information" icon={<FaFileAlt className="text-white" size={20} />}>
-                <FormField label="Proposal Title">
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full p-3 bg-black border border-white/10 text-white rounded-md focus:border-white/30 focus:outline-none"
-                    placeholder="Enter a descriptive title for your proposal"
-                    required
-                  />
-                </FormField>
-              
-                <FormField label="Summary">
-                  <input
-                    type="text"
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    className="w-full p-3 bg-black border border-white/10 text-white rounded-md focus:border-white/30 focus:outline-none"
-                    placeholder="A brief one-line summary of your proposal"
-                    required
-                  />
-                </FormField>
-              </FormSection>
-              
-              <FormSection title="Proposal Content" icon={<FaPen className="text-white" size={20} />}>
-                <FormField label="Abstract">
-                  <textarea
-                    value={abstract}
-                    onChange={(e) => setAbstract(e.target.value)}
-                    className="w-full p-3 bg-black border border-white/10 text-white rounded-md focus:border-white/30 focus:outline-none h-32 resize-none"
-                    placeholder="Provide a concise overview of your proposal, including its purpose and goals"
-                    required
-                  />
-                </FormField>
-              
-                <FormField 
-                  label="Full Proposal Details"
-                  hint="Markdown formatting is supported. Be thorough and clear in your proposal."
-                >
-                  <textarea
-                    value={fullProposal}
-                    onChange={(e) => setFullProposal(e.target.value)}
-                    className="w-full p-3 bg-black border border-white/10 text-white rounded-md focus:border-white/30 focus:outline-none h-60 resize-none"
-                    placeholder="Detail your proposal thoroughly. Include background, implementation details, timeline, and any other relevant information."
-                    required
-                  />
-                </FormField>
-              </FormSection>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mb-10"
+              >
+                <div className="flex items-center mb-6">
+                  <div className="w-1 h-8 bg-gradient-to-b from-teal to-teal/30 rounded-full mr-4"></div>
+                  <h2 className="text-2xl font-medium text-white tracking-tight">Proposal Information</h2>
+                </div>
+                
+                <div className="p-8 rounded-xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-white/10 shadow-lg backdrop-blur-sm">
+                  <FormField 
+                    label="Proposal Title"
+                    hint="Keep it concise and descriptive."
+                  >
+                    <input
+                      ref={titleRef}
+                      type="text"
+                      value={title}
+                      onChange={handleTitleChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none transition-all duration-200 hover:border-white/20"
+                      placeholder="Enter a descriptive title for your proposal"
+                      required
+                    />
+                  </FormField>
+                
+                  <FormField 
+                    label="Summary"
+                    hint="A brief overview of your proposal (1-2 sentences)."
+                  >
+                    <textarea
+                      ref={summaryRef}
+                      value={summary}
+                      onChange={handleSummaryChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none h-20 resize-none transition-all duration-200 hover:border-white/20"
+                      placeholder="Provide a short summary of your proposal"
+                      required
+                    />
+                  </FormField>
+                </div>
+              </motion.div>
             
-              <FormSection title="Proposal Submitter" icon={<FaUserAlt className="text-white" size={20} />}>
-                <FormField 
-                  label="Your Wallet Address"
-                  hint="This will be recorded as the proposal creator and cannot be changed later."
-                >
-                  <input
-                    type="text"
-                    value={creator}
-                    onChange={(e) => setCreator(e.target.value)}
-                    className="w-full p-3 bg-black border border-white/10 text-white rounded-md focus:border-white/30 focus:outline-none font-mono"
-                    placeholder="Enter your wallet address (0x...)"
-                    required
-                  />
-                </FormField>
-              </FormSection>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mb-10"
+              >
+                <div className="flex items-center mb-6">
+                  <div className="w-1 h-8 bg-gradient-to-b from-teal to-teal/30 rounded-full mr-4"></div>
+                  <h2 className="text-2xl font-medium text-white tracking-tight">Proposal Details</h2>
+                </div>
+                
+                <div className="p-8 rounded-xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-white/10 shadow-lg backdrop-blur-sm">
+                  <FormField 
+                    label="Abstract"
+                    hint="A more detailed explanation of your proposal (3-5 sentences)."
+                  >
+                    <textarea
+                      ref={abstractRef}
+                      value={abstract}
+                      onChange={handleAbstractChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none h-32 resize-none transition-all duration-200 hover:border-white/20"
+                      placeholder="Provide an abstract that explains your proposal in more detail"
+                    />
+                  </FormField>
+                
+                  <FormField 
+                    label="Full Proposal Details"
+                    hint="Markdown formatting is supported. Be thorough and clear in your proposal."
+                  >
+                    <textarea
+                      ref={fullProposalRef}
+                      value={fullProposal}
+                      onChange={handleFullProposalChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none h-60 resize-none transition-all duration-200 hover:border-white/20"
+                      placeholder="Detail your proposal thoroughly. Include background, implementation details, timeline, and any other relevant information."
+                    />
+                  </FormField>
+                </div>
+              </motion.div>
             
-              <div className="flex justify-end items-center mt-10">
-                <button
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mb-10"
+              >
+                <div className="flex items-center mb-6">
+                  <div className="w-1 h-8 bg-gradient-to-b from-teal to-teal/30 rounded-full mr-4"></div>
+                  <h2 className="text-2xl font-medium text-white tracking-tight">Proposal Submitter</h2>
+                </div>
+                
+                <div className="p-8 rounded-xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-white/10 shadow-lg backdrop-blur-sm">
+                  <FormField 
+                    label="Your Wallet Address"
+                    hint="This will be recorded as the proposal creator and cannot be changed later."
+                  >
+                    <input
+                      ref={creatorRef}
+                      type="text"
+                      value={creator}
+                      onChange={handleCreatorChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none font-mono transition-all duration-200 hover:border-white/20"
+                      placeholder="Enter your wallet address (0x...)"
+                      required
+                    />
+                  </FormField>
+                </div>
+              </motion.div>
+            
+              <motion.div 
+                className="flex justify-end items-center mt-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <motion.button
                   type="button"
                   onClick={() => navigate('/proposals')}
-                  className="px-5 py-3 bg-black border border-white/20 text-white rounded-md flex items-center font-medium mr-4 hover:bg-white/5"
+                  className="px-5 py-3 bg-black border border-white/20 text-white rounded-lg flex items-center font-medium mr-4 hover:bg-white/5 transition-all duration-200"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <FaTimes className="mr-2" />
                   <span>Cancel</span>
-                </button>
+                </motion.button>
               
-                <button
+                <motion.button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`px-6 py-3 bg-white text-black rounded-md flex items-center font-medium ${isSubmitting ? 'opacity-70' : 'hover:bg-white/90'}`}
+                  className={`px-6 py-3 bg-gradient-to-r from-teal to-teal/80 text-black rounded-lg flex items-center font-medium shadow-lg ${isSubmitting ? 'opacity-70' : 'hover:shadow-teal/20 hover:shadow-xl'}`}
+                  whileHover={!isSubmitting ? { scale: 1.02, boxShadow: "0px 0px 15px rgba(20, 184, 166, 0.3)" } : {}}
+                  whileTap={!isSubmitting ? { scale: 0.98 } : {}}
                 >
                   {isSubmitting ? (
                     <>
@@ -190,11 +341,11 @@ const ProposalCreation: React.FC = () => {
                       <FaArrowRight className="ml-2" />
                     </>
                   )}
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             </form>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

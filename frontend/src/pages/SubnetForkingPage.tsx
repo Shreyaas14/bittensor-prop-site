@@ -927,7 +927,7 @@ const SubnetForkingPage: React.FC = () => {
           transition={{ duration: 0.8 }}
           style={{ textShadow: "0 0 20px rgba(255,255,255,0.2)" }}
         >
-          Subnet Fork Complete
+          Subnet Fork 
         </motion.h1>
 
         {/* Improved subnet visualization container with better responsiveness */}

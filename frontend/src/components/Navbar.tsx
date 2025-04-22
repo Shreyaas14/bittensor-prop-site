@@ -1,8 +1,8 @@
 // src/components/Navbar.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FaPlus } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaPlus, FaChartLine, FaExternalLinkAlt, FaChevronDown, FaWallet, FaBars, FaTimes } from 'react-icons/fa';
 import WalletConnectButton from './ui/WalletConnectButton';
 
 // Animated SVG icon component for the TAO logo
@@ -34,7 +34,6 @@ const TaoIcon = () => {
   );
 };
 
-// Update interface for Navbar to accept proposals and add wallet connection handler
 interface NavbarProps {
   proposals?: Array<{_id: string}>;
   onWalletConnect?: (address: string | null, taoBalance: number) => void;
@@ -44,6 +43,10 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
   const location = useLocation();
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [taoBalance, setTaoBalance] = useState<number>(0);
+  const [scrolled, setScrolled] = useState(false);
+  const [showWalletDropdown, setShowWalletDropdown] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navbarRef = useRef<HTMLDivElement>(null);
   
   // Check if a path is active
   const isActive = (path: string) => {
@@ -55,11 +58,22 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
   const getProposalsPath = () => {
     return proposals.length > 0 ? `/proposals/${proposals[0]._id}` : '/proposals';
   };
-
-  // Navbar scroll animation
-  const [scrolled, setScrolled] = useState(false);
   
-  React.useEffect(() => {
+  // Handle wallet connection
+  const handleWalletConnect = (address: string | null, balance: number) => {
+    setWalletAddress(address);
+    setTaoBalance(balance);
+    if (onWalletConnect) {
+      onWalletConnect(address, balance);
+    }
+  };
+  
+  // Truncate wallet address for display
+  const truncateAddress = (address: string) => {
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
+  
+  useEffect(() => {
     const handleScroll = () => {
       const offset = window.scrollY;
       if (offset > 50) {
@@ -75,135 +89,258 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-
-  // Handle wallet connection
-  const handleWalletConnect = (address: string | null, balance: number) => {
-    setWalletAddress(address);
-    setTaoBalance(balance);
-    if (onWalletConnect) {
-      onWalletConnect(address, balance);
+  
+  // Calculate navbar height and set CSS variable
+  useEffect(() => {
+    if (navbarRef.current) {
+      const height = navbarRef.current.offsetHeight;
+      document.documentElement.style.setProperty('--navbar-height', `${height}px`);
+      document.body.style.paddingTop = `${height}px`;
     }
-  };
-
-  return (
-    <motion.header 
-      className={`fixed top-0 left-0 right-0 z-50 bg-black transition-all duration-300 ${
-        scrolled ? "shadow-[0_5px_15px_rgba(0,0,0,0.5)] backdrop-blur-sm bg-black/90" : "border-b border-[#1a1a1a]"
-      }`}
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
-          {/* Logo and Brand */}
-          <motion.div 
-            className="flex-shrink-0"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link to="/" className="flex items-center">
-              <TaoIcon />
-              <motion.span 
-                className="text-white font-medium ml-2"
-                whileHover={{ textShadow: "0 0 8px rgba(255,255,255,0.7)" }}
-              >
-                taogov
-              </motion.span>
-            </Link>
-          </motion.div>
-          
-          {/* Navigation Links */}
-          <nav className="flex items-center space-x-8">
-            <NavLink to={getProposalsPath()} active={isActive('/proposals')}>
-              Proposals
-            </NavLink>
-            
-            <NavLink to="/demo" active={isActive('/demo')}>
-              Demo
-            </NavLink>
-            
-            <NavLink to="/whitepaper" active={isActive('/whitepaper')}>
-              White Paper
-            </NavLink>
-            
-            {/* Create Proposal Button */}
-            <NavLink to="/proposals/create" active={isActive('/proposals/create')}>
-              <div className="flex items-center">
-                <FaPlus size={10} className="mr-1.5" />
-                Create Proposal
-              </div>
-            </NavLink>
-            
-            {/* Add wallet connect button */}
-            <div className="ml-2 w-44">
-              {walletAddress ? (
-                <motion.div 
-                  className="flex items-center gap-2 bg-card border border-teal rounded-md px-3 py-1.5"
-                  whileHover={{ scale: 1.02, boxShadow: "0 0 8px rgba(0,219,188,0.25)" }}
-                >
-                  <div className="flex-1 truncate">
-                    <div className="text-xs text-text-secondary">Connected</div>
-                    <div className="font-mono text-white text-xs truncate">
-                      {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}
-                    </div>
-                  </div>
-                  <span className="text-teal font-medium text-xs">{taoBalance}τ</span>
-                </motion.div>
-              ) : (
-                <div className="h-9">
-                  <WalletConnectButton onConnect={handleWalletConnect} />
-                </div>
-              )}
-            </div>
-          </nav>
-        </div>
-      </div>
-    </motion.header>
-  );
-};
-
-// Animated NavLink component
-interface NavLinkProps {
-  to: string;
-  active: boolean;
-  children: React.ReactNode;
-}
-
-const NavLink: React.FC<NavLinkProps> = ({ to, active, children }) => {
-  const [isHovered, setIsHovered] = useState(false);
+    
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        if (entry.target === navbarRef.current) {
+          const height = entry.contentRect.height;
+          document.documentElement.style.setProperty('--navbar-height', `${height}px`);
+          document.body.style.paddingTop = `${height}px`;
+        }
+      }
+    });
+    
+    if (navbarRef.current) {
+      resizeObserver.observe(navbarRef.current);
+    }
+    
+    return () => {
+      if (navbarRef.current) {
+        resizeObserver.unobserve(navbarRef.current);
+      }
+    };
+  }, []);
   
   return (
-    <Link 
-      to={to} 
-      className="relative group py-1 px-2"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <motion.span 
-        className={`text-sm font-medium transition-all duration-300 ${
-          active ? "text-white" : "text-white opacity-80"
-        } ${isHovered ? "text-white" : ""}`}
-        animate={{ 
-          y: isHovered ? -2 : 0,
-          textShadow: isHovered ? "0 0 8px rgba(255,255,255,0.7)" : "none"
-        }}
-      >
-        {children}
-      </motion.span>
+    <>
+      <div ref={navbarRef} className="fixed top-0 left-0 right-0 z-50">
+        {/* Top black bar */}
+        <div className="w-full bg-black border-b border-[#272727]">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between h-8">
+              <div className="flex items-center">
+                <span className="text-white/80 text-xs font-everett">TAO Governance & Bittensor Network</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Main navigation bar */}
+        <motion.header 
+          className={`bg-[#141414] transition-shadow duration-300 ${
+            scrolled ? "shadow-[0_5px_15px_rgba(0,0,0,0.5)]" : ""
+          }`}
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center">
+                {/* Logo and Brand */}
+                <motion.div 
+                  className="flex-shrink-0 mr-8"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Link to="/" className="flex items-center">
+                    <TaoIcon />
+                    <motion.span 
+                      className="text-white font-everett font-medium text-xl ml-2"
+                      whileHover={{ textShadow: "0 0 8px rgba(255,255,255,0.7)" }}
+                    >
+                      taogov
+                    </motion.span>
+                  </Link>
+                </motion.div>
+              </div>
+              
+              {/* Right side items */}
+              <div className="flex items-center gap-6">
+                {/* Main Navigation - Desktop */}
+                <nav className="hidden md:flex items-center space-x-8">
+                  <NavLink to={getProposalsPath()} active={isActive('/proposals')}>
+                    Proposals
+                  </NavLink>
+                  
+                  <NavLink to="/demo" active={isActive('/demo')}>
+                    Demo
+                  </NavLink>
+                  
+                  <NavLink to="/whitepaper" active={isActive('/whitepaper')}>
+                    White Paper
+                  </NavLink>
+                  
+                  {/* Create Proposal Button */}
+                  <NavLink to="/proposals/create" active={isActive('/proposals/create')}>
+                    <div className="flex items-center gap-1.5">
+                      <FaPlus size={12} />
+                      <span>Create Proposal</span>
+                    </div>
+                  </NavLink>
+                </nav>
+                
+                {/* Wallet Connect Button */}
+                <div className="h-9 relative"
+                  onMouseEnter={() => walletAddress && setShowWalletDropdown(true)}
+                  onMouseLeave={() => setShowWalletDropdown(false)}
+                >
+                  {walletAddress ? (
+                    <>
+                      <motion.button
+                        className="flex items-center justify-center h-full bg-white border border-gray-200 text-black rounded-md px-3 py-1.5 text-sm font-everett"
+                        whileHover={{ 
+                          scale: 1.02,
+                          boxShadow: "0 0 8px rgba(255,255,255,0.3)"
+                        }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <FaWallet className="mr-2" size={14} />
+                        Wallet Connected
+                        <FaChevronDown className="ml-2" size={10} />
+                      </motion.button>
+                      
+                      {/* Wallet Dropdown */}
+                      <AnimatePresence>
+                        {showWalletDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute right-0 mt-2 w-64 bg-[#1a1a1a] border border-[#272727] rounded-md shadow-lg z-50"
+                          >
+                            <div className="p-3">
+                              <div className="mb-3">
+                                <p className="text-white/60 text-xs mb-1 font-everett">Connected Wallet</p>
+                                <p className="text-white font-medium font-everett">{truncateAddress(walletAddress)}</p>
+                              </div>
+                              <div className="mb-3">
+                                <p className="text-white/60 text-xs mb-1 font-everett">TAO Balance</p>
+                                <p className="text-white font-medium font-everett">{taoBalance.toFixed(2)} TAO</p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setWalletAddress(null);
+                                  setTaoBalance(0);
+                                  setShowWalletDropdown(false);
+                                  if (onWalletConnect) {
+                                    onWalletConnect(null, 0);
+                                  }
+                                }}
+                                className="w-full mt-2 py-2 text-white/80 hover:text-white text-sm bg-[#252525] hover:bg-[#2a2a2a] rounded-md transition-colors font-everett"
+                              >
+                                Disconnect
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  ) : (
+                    <WalletConnectButton onConnect={handleWalletConnect} isNavbar={true} />
+                  )}
+                </div>
+                
+                {/* Mobile menu button */}
+                <button
+                  className="md:hidden flex items-center justify-center h-9 w-9 bg-[#252525] text-white rounded-md border border-[#272727]"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                >
+                  {mobileMenuOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile menu - only renders when mobileMenuOpen is true */}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="md:hidden overflow-hidden bg-[#1a1a1a] border-t border-[#272727]"
+              >
+                <div className="px-4 py-3 space-y-2">
+                  <Link 
+                    to={getProposalsPath()} 
+                    className={`block py-2 px-3 rounded-md font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium ${isActive('/proposals') ? 'bg-[#252525] text-white' : 'text-white/80'}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Proposals
+                  </Link>
+                  <Link 
+                    to="/demo" 
+                    className={`block py-2 px-3 rounded-md font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium ${isActive('/demo') ? 'bg-[#252525] text-white' : 'text-white/80'}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Demo
+                  </Link>
+                  <Link 
+                    to="/whitepaper" 
+                    className={`block py-2 px-3 rounded-md font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium ${isActive('/whitepaper') ? 'bg-[#252525] text-white' : 'text-white/80'}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    White Paper
+                  </Link>
+                  <Link 
+                    to="/proposals/create" 
+                    className="flex items-center gap-1.5 bg-[#252525] text-white font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium px-3 py-2 rounded-md hover:bg-[#2a2a2a] transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <FaPlus size={12} />
+                    <span>Create Proposal</span>
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.header>
+      </div>
       
-      {/* Animated underline */}
-      <motion.div 
-        className="absolute -bottom-1 left-0 h-0.5 bg-white"
-        initial={{ width: active ? "100%" : "0%" }}
-        animate={{ 
-          width: active || isHovered ? "100%" : "0%",
-          boxShadow: isHovered ? "0 0 5px rgba(255,255,255,0.7)" : "none"
-        }}
-        transition={{ duration: 0.2 }}
-      />
-    </Link>
+      {/* Add CSS to ensure content appears below navbar */}
+      <style dangerouslySetInnerHTML={{__html: `
+        :root {
+          --navbar-height: 0px;
+        }
+        
+        body {
+          padding-top: var(--navbar-height);
+        }
+      `}} />
+    </>
   );
 };
+
+// NavLink component for consistent styling
+const NavLink = ({ to, active, children }) => (
+  <Link
+    to={to}
+    className={`relative font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium transition-colors ${
+      active ? 'text-white' : 'text-white/70 hover:text-white'
+    }`}
+  >
+    <div className="flex items-center">
+      {children}
+    </div>
+    {active && (
+      <motion.div
+        className="absolute bottom-[-20px] left-0 w-full h-[3px] bg-white rounded-t-full"
+        layoutId="navIndicator"
+        transition={{ type: "spring", duration: 0.5 }}
+      />
+    )}
+  </Link>
+);
 
 export default Navbar;
