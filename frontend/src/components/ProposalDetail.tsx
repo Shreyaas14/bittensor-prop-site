@@ -27,11 +27,10 @@ interface Proposal {
   _id: string;
   content: ProposalContent;
   voting_stats: VotingStats;
+  walletAddress: string;
   created_at?: string;
-  walletAddress?: string;
-  proposal_creator?: string;
-  voting_start?: string;
-  voting_end?: string;
+  level: 'network' | 'subnet' | string;
+  subnet_id?: number | string;
 }
 
 // Custom Progress component
@@ -57,6 +56,64 @@ const Progress: React.FC<{ value: number; variant?: "default" | "positive" | "ne
         className={`h-full transition-all duration-500 ease-out ${getIndicatorColor()}`}
         style={{ width: `${value}%` }}
       />
+    </div>
+  );
+};
+
+const ProposalLevelBadge = ({ level, subnetId }) => {
+  // Super detailed debugging - inspect exactly what we're getting
+  console.log('ProposalLevelBadge CRITICAL DEBUG:', { 
+    rawLevel: level, 
+    rawSubnetId: subnetId,
+    levelType: typeof level,
+    subnetIdType: typeof subnetId,
+    levelJSON: JSON.stringify(level),
+    subnetIdJSON: JSON.stringify(subnetId)
+  });
+  
+  // AGGRESSIVE detection logic for subnet proposals
+  // Check multiple ways the data could be represented
+  const hasSubnetId = 
+    subnetId !== undefined && 
+    subnetId !== null && 
+    subnetId !== 'null' &&
+    subnetId !== 'undefined' &&
+    String(subnetId).trim() !== '';
+  
+  const isSubnetLevel = 
+    level === 'subnet' || 
+    (typeof level === 'string' && level.toLowerCase() === 'subnet');
+  
+  // If EITHER condition is true, it's a subnet proposal
+  const isSubnetProposal = hasSubnetId || isSubnetLevel;
+  
+  // Extract a numeric display value for the subnet ID
+  let displaySubnetId = '?';
+  if (hasSubnetId) {
+    // Try to get a clean numeric value
+    const parsedId = parseInt(String(subnetId), 10);
+    displaySubnetId = isNaN(parsedId) ? String(subnetId) : String(parsedId);
+  }
+  
+  console.log('BADGE FINAL DECISION:', {
+    hasSubnetId,
+    isSubnetLevel,
+    isSubnetProposal,
+    displaySubnetId,
+    finalOutput: isSubnetProposal ? `SUBNET #${displaySubnetId} PROPOSAL` : 'NETWORK PROPOSAL'
+  });
+  
+  return (
+    <div className="flex items-center mb-4">
+      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+        !isSubnetProposal 
+          ? 'bg-[#EB5347]/10 text-[#EB5347] dark:bg-[#EB5347]/20 dark:text-[#EB5347]' 
+          : 'bg-[#2DD4BF]/10 text-[#2DD4BF] dark:bg-[#2DD4BF]/20 dark:text-[#2DD4BF]'
+      }`}>
+        {isSubnetProposal 
+          ? `Subnet #${displaySubnetId} Proposal` 
+          : 'Network Proposal'}
+      </div>
     </div>
   );
 };
@@ -226,21 +283,62 @@ const ProposalDetail: React.FC = () => {
   console.log("Raw created_at value:", proposal.created_at);
   console.log("3-day period enforced");
 
+  // Add this function inside the component
+  const getSubnetInfo = () => {
+    if (!proposal) return { level: 'network', subnetId: undefined };
+    
+    console.log("EXTRACTING SUBNET INFO FROM:", proposal);
+    
+    let level = proposal.level;
+    let subnetId = proposal.subnet_id;
+    
+    // Force a string comparison to be absolutely sure
+    const levelString = String(level || '').toLowerCase();
+    const isSubnetByLevel = levelString === 'subnet';
+    
+    // If we have a subnet_id, override level to 'subnet' regardless
+    if (subnetId !== undefined && subnetId !== null) {
+      level = 'subnet';
+    }
+    
+    console.log("CRITICAL SUBNET INFO OUTPUT:", {
+      originalLevel: proposal.level,
+      originalSubnetId: proposal.subnet_id,
+      computedLevel: level,
+      computedSubnetId: subnetId,
+      isSubnetByLevel
+    });
+    
+    return { level, subnetId };
+  };
+
+  // Find this part in the render section where the proposal is displayed
   return (
-    <div className="flex-1 p-8 md:p-12 overflow-auto bg-[#141414] font-['TWK_Everett']">
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto">
-        {/* Header Section - Keep title, remove duplicate summary below */}
-        <div className="mb-16">
-          <motion.h1 
-            className="text-[48px] leading-[60px] tracking-[-0.06em] font-medium text-white mb-6 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            {proposalSummary}
-          </motion.h1>
-          
+    <div className="h-full overflow-auto">
+      <div className="max-w-5xl mx-auto p-8">
+        {/* Adding the ProposalLevelBadge here at the top of the proposal */}
+        {proposal && (
+          <>
+            {/* Use our guaranteed subnet info extraction */}
+            <ProposalLevelBadge 
+              level={getSubnetInfo().level}
+              subnetId={getSubnetInfo().subnetId} 
+            />
+            
+            {/* Rest of your component rendering */}
+          </>
+        )}
+
+        {/* Title Section with improved styling */}
+        <motion.div
+          className="mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <h1 className="text-[36px] leading-[43px] tracking-[-0.03em] font-medium text-white mb-4">
+            {proposalTitle}
+          </h1>
           <motion.div 
             className="flex items-center space-x-4 text-[11px] leading-[16px] tracking-[-0.03em] text-white/50"
             initial={{ opacity: 0 }}
@@ -293,7 +391,7 @@ const ProposalDetail: React.FC = () => {
               </div>
             )}
           </motion.div>
-        </div>
+        </motion.div>
         
         {/* Voting Stats Section with improved cards and animations */}
         <div className="mb-16">

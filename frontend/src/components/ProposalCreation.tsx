@@ -46,15 +46,15 @@ const ProposalCreation = () => {
 
   // Use refs for direct DOM access
   const titleRef = useRef(null);
-  const summaryRef = useRef(null);
   const abstractRef = useRef(null);
   const fullProposalRef = useRef(null);
   
   // State for form values
   const [title, setTitle] = useState('');
-  const [summary, setSummary] = useState('');
   const [abstract, setAbstract] = useState('');
   const [fullProposal, setFullProposal] = useState('');
+  const [proposalLevel, setProposalLevel] = useState('network');
+  const [subnetId, setSubnetId] = useState('');
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,12 +85,6 @@ const ProposalCreation = () => {
     setTitle(newValue);
   };
 
-  const handleSummaryChange = (e) => {
-    const newValue = e.target.value;
-    console.log('Summary changing to:', newValue);
-    setSummary(newValue);
-  };
-
   const handleAbstractChange = (e) => {
     const newValue = e.target.value;
     console.log('Abstract changing to:', newValue);
@@ -103,60 +97,92 @@ const ProposalCreation = () => {
     setFullProposal(newValue);
   };
 
+  const handleProposalLevelChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Proposal level changing to:', newValue);
+    setProposalLevel(newValue);
+  };
+
+  const handleSubnetIdChange = (e) => {
+    const newValue = e.target.value;
+    console.log('Subnet ID changing to:', newValue);
+    setSubnetId(newValue);
+  };
+
   // Debug effect to monitor state changes
   useEffect(() => {
-    console.log('State updated:', { title, summary, abstract, fullProposal });
-  }, [title, summary, abstract, fullProposal]);
+    console.log('State updated:', { title, abstract, fullProposal });
+  }, [title, abstract, fullProposal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setFormError(null);
 
-    // Basic validation
-    if (!title.trim() || !summary.trim()) {
-      setFormError("Please fill out all required fields");
+    // Validate required fields
+    if (!proposalLevel) {
+      setFormError('Please select a proposal level (Network or Subnet)');
       setIsSubmitting(false);
       return;
     }
 
-    console.log('Submitting form with values:', { title, summary, abstract, fullProposal, creator: walletAddress });
+    // If subnet level is selected, require subnet ID
+    if (proposalLevel === 'subnet' && !subnetId) {
+      setFormError('Please enter a subnet ID for subnet proposals');
+      setIsSubmitting(false);
+      return;
+    }
 
-    const proposalPayload = {
-      content: { 
-        title,
-        summary, 
-        abstract, 
-        details: fullProposal
-      },
-      voting_stats: { yes: 0, no: 0, abstain: 0, total_votes: 0 },
-      proposal_creator: walletAddress,
-      voting_start: new Date().toISOString(),
-      voting_end: closingDate.toISOString(),
-    };
+    if (!title.trim() || !abstract.trim() || !fullProposal.trim()) {
+      setFormError('Please fill out all required fields');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      const newProposal = await createProposal(proposalPayload);
-      console.log('Proposal created successfully:', newProposal);
+      // Convert subnetId to number if present
+      const numericSubnetId = proposalLevel === 'subnet' ? parseInt(subnetId, 10) : undefined;
       
-      setSuccess(true);
+      // Log clearly what type of proposal we're creating
+      console.log(`Creating a ${proposalLevel.toUpperCase()} proposal`, 
+        proposalLevel === 'subnet' ? `for subnet #${numericSubnetId}` : '');
+
+      const proposalPayload = {
+        content: {
+          title,
+          abstract,
+          full_proposal: fullProposal
+        },
+        proposal_creator: walletAddress,
+        level: proposalLevel,
+        subnet_id: numericSubnetId,
+        voting_stats: { yes: 0, no: 0, abstain: 0, total_votes: 0 }
+      };
+
+      // Log the exact payload we're sending to ensure subnet_id is included
+      console.log('Submitting proposal payload:', JSON.stringify(proposalPayload, null, 2));
       
-      setTimeout(() => {
-        navigate(`/proposals/${newProposal._id || newProposal.id}`);
-      }, 1500);
+      const response = await createProposal(proposalPayload);
+      
+      // Extract the ID from the response
+      const newProposalId = response._id || response.id || response.proposal_id;
+      
+      if (newProposalId) {
+        console.log(`Successfully created ${proposalLevel} proposal with ID: ${newProposalId}`);
+        // Add a small delay to ensure database updates are complete
+        setTimeout(() => {
+          // Redirect directly to the new proposal's detail page
+          navigate(`/proposals/${newProposalId}`);
+        }, 500);
+      } else {
+        // Fallback to proposals list if we can't get the ID
+        console.warn('Could not get new proposal ID from response:', response);
+        navigate('/proposals');
+      }
     } catch (error) {
       console.error('Error creating proposal:', error);
-      let errorMessage = 'Failed to create proposal. Please try again.';
-      
-      if (error.response) {
-        if (error.response.data && typeof error.response.data === 'object') {
-          errorMessage = error.response.data.message || error.response.data.error || errorMessage;
-        } else if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        }
-      }
-      
-      setFormError(errorMessage);
+      setFormError('Failed to create proposal. Please try again.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -256,6 +282,38 @@ const ProposalCreation = () => {
                 
                 <div className="p-8 rounded-xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-white/10 shadow-lg backdrop-blur-sm">
                   <FormField 
+                    label="Proposal Level"
+                    hint="Choose the level of your proposal"
+                  >
+                    <select
+                      value={proposalLevel}
+                      onChange={handleProposalLevelChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none transition-all duration-200 hover:border-white/20"
+                    >
+                      <option value="network">Network</option>
+                      <option value="subnet">Subnet</option>
+                    </select>
+                  </FormField>
+                
+                  {proposalLevel === 'subnet' && (
+                    <FormField 
+                      label="Subnet ID"
+                      hint="Choose the specific subnet for this proposal"
+                    >
+                      <select
+                        value={subnetId}
+                        onChange={handleSubnetIdChange}
+                        className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none transition-all duration-200 hover:border-white/20"
+                      >
+                        <option value="">Select a subnet</option>
+                        {Array.from({ length: 98 }, (_, i) => (
+                          <option key={i} value={i.toString()}>{i}</option>
+                        ))}
+                      </select>
+                    </FormField>
+                  )}
+                
+                  <FormField 
                     label="Proposal Title"
                     hint="Keep it concise and descriptive."
                   >
@@ -271,16 +329,15 @@ const ProposalCreation = () => {
                   </FormField>
                 
                   <FormField 
-                    label="Summary"
-                    hint="A brief overview of your proposal (1-2 sentences)."
+                    label="Abstract"
+                    hint="A more detailed explanation of your proposal (3-5 sentences)."
                   >
                     <textarea
-                      ref={summaryRef}
-                      value={summary}
-                      onChange={handleSummaryChange}
-                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none h-20 resize-none transition-all duration-200 hover:border-white/20"
-                      placeholder="Provide a short summary of your proposal"
-                      required
+                      ref={abstractRef}
+                      value={abstract}
+                      onChange={handleAbstractChange}
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none h-32 resize-none transition-all duration-200 hover:border-white/20"
+                      placeholder="Provide an abstract that explains your proposal in more detail"
                     />
                   </FormField>
                 </div>
@@ -298,19 +355,6 @@ const ProposalCreation = () => {
                 </div>
                 
                 <div className="p-8 rounded-xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-white/10 shadow-lg backdrop-blur-sm">
-                  <FormField 
-                    label="Abstract"
-                    hint="A more detailed explanation of your proposal (3-5 sentences)."
-                  >
-                    <textarea
-                      ref={abstractRef}
-                      value={abstract}
-                      onChange={handleAbstractChange}
-                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none h-32 resize-none transition-all duration-200 hover:border-white/20"
-                      placeholder="Provide an abstract that explains your proposal in more detail"
-                    />
-                  </FormField>
-                
                   <FormField 
                     label="Full Proposal Details"
                     hint="Markdown formatting is supported. Be thorough and clear in your proposal."

@@ -21,6 +21,8 @@ export interface ProposalDetailData {
   content: ProposalContent;
   voting_stats: VotingStats;
   created_at?: string;
+  level: 'network' | 'subnet' | string;
+  subnet_id?: number;
 }
 
 export const useProposalDetail = () => {

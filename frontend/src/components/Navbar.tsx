@@ -166,13 +166,9 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
               {/* Right side items */}
               <div className="flex items-center gap-6">
                 {/* Main Navigation - Desktop */}
-                <nav className="hidden md:flex items-center space-x-8">
+                <nav className="hidden md:flex items-center space-x-10">
                   <NavLink to={getProposalsPath()} active={isActive('/proposals')}>
                     Proposals
-                  </NavLink>
-                  
-                  <NavLink to="/demo" active={isActive('/demo')}>
-                    Demo
                   </NavLink>
                   
                   <NavLink to="/whitepaper" active={isActive('/whitepaper')}>
@@ -271,20 +267,13 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
                 transition={{ duration: 0.3 }}
                 className="md:hidden overflow-hidden bg-[#1a1a1a] border-t border-[#272727]"
               >
-                <div className="px-4 py-3 space-y-2">
+                <div className="px-4 py-3 space-y-2.5">
                   <Link 
                     to={getProposalsPath()} 
                     className={`block py-2 px-3 rounded-md font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium ${isActive('/proposals') ? 'bg-[#252525] text-white' : 'text-white/80'}`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Proposals
-                  </Link>
-                  <Link 
-                    to="/demo" 
-                    className={`block py-2 px-3 rounded-md font-everett text-[14px] leading-[16px] tracking-[-0.04em] font-medium ${isActive('/demo') ? 'bg-[#252525] text-white' : 'text-white/80'}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Demo
                   </Link>
                   <Link 
                     to="/whitepaper" 

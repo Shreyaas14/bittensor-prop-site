@@ -239,7 +239,6 @@ const HomePage: React.FC = () => {
           className="flex flex-wrap gap-5 justify-center"
         >
           <NavButton to="/proposals">Proposals</NavButton>
-          <NavButton to="/demo">Demo</NavButton>
           <NavButton to="/whitepaper">White Paper</NavButton>
         </motion.div>
       </div>
