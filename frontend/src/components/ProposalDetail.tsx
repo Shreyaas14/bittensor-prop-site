@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import CommentSection from '@/components/CommentSection';
 import { useAppContext } from '@/contexts/AppContext';
+import { useSocket } from '@/hooks/useSocket';
 
 // Define interfaces for your proposal data
 interface ProposalContent {
@@ -29,6 +30,8 @@ interface Proposal {
   created_at?: string;
   walletAddress?: string;
   proposal_creator?: string;
+  voting_start?: string;
+  voting_end?: string;
 }
 
 // Custom Progress component
@@ -60,6 +63,7 @@ const Progress: React.FC<{ value: number; variant?: "default" | "positive" | "ne
 
 const ProposalDetail: React.FC = () => {
   const { id } = useParams();
+  const socket = useSocket();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +93,23 @@ const ProposalDetail: React.FC = () => {
 
     fetchProposal();
   }, [id]);
+
+  // live‐update the voting_stats when we get a voteUpdate for this proposal
+  useEffect(() => {
+    if (!socket || !id) return;
+    const handleVoteUpdate = (updated: any) => {
+      if (updated._id === id) {
+        setProposal(prev =>
+          prev
+            ? { ...prev, voting_stats: updated.voting_stats }
+            : prev
+        );
+      }
+    };
+
+    socket.on('voteUpdate', handleVoteUpdate);
+    return () => { socket.off('voteUpdate', handleVoteUpdate); };
+  }, [socket, id]);
 
   // Loading state
   if (loading) {
@@ -178,6 +199,33 @@ const ProposalDetail: React.FC = () => {
     }
   }
 
+  // Replace your current date calculation with this:
+  const now = new Date();
+  let endDate: Date;
+
+  if (proposal.voting_end) {
+    // If voting_end is explicitly set, use that
+    endDate = new Date(proposal.voting_end);
+  } else if (proposal.created_at) {
+    // If no voting_end but we have created_at, add 3 days to it
+    endDate = new Date(proposal.created_at);
+    endDate.setDate(endDate.getDate() + 3); // Add 3 days
+  } else {
+    // Fallback (shouldn't happen but just in case)
+    endDate = new Date();
+    endDate.setDate(endDate.getDate() + 3);
+  }
+
+  const isVotingClosed = now > endDate;
+
+  // Log the values for debugging
+  console.log("Current time:", now.toISOString());
+  console.log("Voting end date:", endDate.toISOString());
+  console.log("Is voting closed:", isVotingClosed);
+  console.log("Raw voting_end value:", proposal.voting_end);
+  console.log("Raw created_at value:", proposal.created_at);
+  console.log("3-day period enforced");
+
   return (
     <div className="flex-1 p-8 md:p-12 overflow-auto bg-[#141414] font-['TWK_Everett']">
       {/* Main Content */}
@@ -214,6 +262,36 @@ const ProposalDetail: React.FC = () => {
                 <span className="font-mono">{shortWalletAddress}</span>
               </div>
             )}
+            {/* Closing date */}
+            {proposal.voting_end && (
+              <div className="flex items-center mt-2 text-[11px] leading-[16px] text-white/50">
+                <svg
+                  className="w-4 h-4 mr-2 text-white/30"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>
+                  Closes on{' '}
+                  {new Date(proposal.voting_end).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  })}
+                </span>
+              </div>
+            )}
           </motion.div>
         </div>
         
@@ -232,71 +310,91 @@ const ProposalDetail: React.FC = () => {
           </motion.h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <motion.div 
-              className="p-6 rounded-2xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-[rgba(255,255,255,0.06)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              whileHover={{ 
-                y: -5,
-                boxShadow: "0 14px 40px rgba(0,219,188,0.15)",
-                borderColor: "rgba(0,219,188,0.2)"
-              }}
-            >
-              <div className="flex items-center mb-3">
-                <div className="w-2 h-2 rounded-full bg-[#00DBBC] mr-2"></div>
-                <span className="text-[11px] leading-[16px] tracking-[-0.03em] text-white/70">Yes</span>
-              </div>
-              <div className="flex items-baseline">
-                <span className="text-[40px] leading-[48px] tracking-[-0.06em] font-medium text-[#00DBBC] mr-2">{votingStats.yes}</span>
-                <span className="text-[11px] leading-[16px] tracking-[-0.03em] text-white/70">({yesPercentage.toFixed(1)}%)</span>
-              </div>
-              <Progress value={yesPercentage} variant="positive" className="mt-5 h-1" />
-            </motion.div>
-            
-            <motion.div 
-              className="p-6 rounded-2xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-[rgba(255,255,255,0.06)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              whileHover={{ 
-                y: -5,
-                boxShadow: "0 14px 40px rgba(235,83,71,0.15)",
-                borderColor: "rgba(235,83,71,0.2)"
-              }}
-            >
-              <div className="flex items-center mb-3">
-                <div className="w-2 h-2 rounded-full bg-[#EB5347] mr-2"></div>
-                <span className="text-[11px] leading-[16px] tracking-[-0.03em] text-white/70">No</span>
-              </div>
-              <div className="flex items-baseline">
-                <span className="text-[40px] leading-[48px] tracking-[-0.06em] font-medium text-[#EB5347] mr-2">{votingStats.no}</span>
-                <span className="text-[11px] leading-[16px] tracking-[-0.03em] text-white/70">({noPercentage.toFixed(1)}%)</span>
-              </div>
-              <Progress value={noPercentage} variant="negative" className="mt-5 h-1" />
-            </motion.div>
-            
-            <motion.div 
-              className="p-6 rounded-2xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-[rgba(255,255,255,0.06)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              whileHover={{ 
-                y: -5,
-                boxShadow: "0 14px 40px rgba(255,255,255,0.1)",
-                borderColor: "rgba(255,255,255,0.15)"
-              }}
-            >
-              <div className="flex items-center mb-3">
-                <div className="w-2 h-2 rounded-full bg-white mr-2"></div>
-                <span className="text-[11px] leading-[16px] tracking-[-0.03em] text-white/70">Abstain</span>
-              </div>
-              <div className="flex items-baseline">
-                <span className="text-[40px] leading-[48px] tracking-[-0.06em] font-medium text-white mr-2">{votingStats.abstain}</span>
-                <span className="text-[11px] leading-[16px] tracking-[-0.03em] text-white/70">({abstainPercentage.toFixed(1)}%)</span>
-              </div>
-              <Progress value={abstainPercentage} className="mt-5 h-1" />
-            </motion.div>
+            {[
+              {
+                label: "Yes",
+                count: votingStats.yes,
+                percent: yesPercentage,
+                dotColor: "#00DBBC",
+                borderHover: "rgba(0,219,188,0.2)",
+                shadowHover: "0 14px 40px rgba(0,219,188,0.15)",
+              },
+              {
+                label: "No",
+                count: votingStats.no,
+                percent: noPercentage,
+                dotColor: "#EB5347",
+                borderHover: "rgba(235,83,71,0.2)",
+                shadowHover: "0 14px 40px rgba(235,83,71,0.15)",
+              },
+              {
+                label: "Abstain",
+                count: votingStats.abstain,
+                percent: abstainPercentage,
+                dotColor: "#FFFFFF",
+                borderHover: "rgba(255,255,255,0.15)",
+                shadowHover: "0 14px 40px rgba(255,255,255,0.1)",
+              },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.1, duration: 0.4, ease: "easeInOut" }}
+              >
+                {/* card wrapper: pure CSS hover */}
+                <div
+                  className={`
+                    p-6 rounded-2xl 
+                    bg-gradient-to-b from-[#1c1c1c] to-[#181818] 
+                    border border-[rgba(255,255,255,0.06)] 
+                    shadow-[0_8px_30px_rgba(0,0,0,0.12)] 
+                    
+                    /* TRANSFORM & SHADOW & BORDER animations */
+                    transition-transform transition-shadow transition-border-colors 
+                    duration-300 ease-out 
+
+                    /* on hover */
+                    hover:-translate-y-1 
+                    hover:shadow-[${stat.shadowHover}] 
+                    hover:border-[${stat.borderHover}]
+                  `}
+                  style={{ willChange: "transform, box-shadow" }}
+                >
+                  <div className="flex items-center mb-3">
+                    <div
+                      className="w-2 h-2 rounded-full mr-2"
+                      style={{ backgroundColor: stat.dotColor }}
+                    />
+                    <span className="text-[11px] leading-[16px] text-white/70">
+                      {stat.label}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline">
+                    <span
+                      className="text-[40px] leading-[48px] font-medium"
+                      style={{ color: stat.dotColor }}
+                    >
+                      {stat.count}
+                    </span>
+                    <span className="text-[11px] leading-[16px] text-white/70 ml-2">
+                      ({stat.percent.toFixed(1)}%)
+                    </span>
+                  </div>
+                  <Progress
+                    value={stat.percent}
+                    variant={
+                      stat.label === "Yes"
+                        ? "positive"
+                        : stat.label === "No"
+                        ? "negative"
+                        : "default"
+                    }
+                    className="mt-5 h-1"
+                  />
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
         
@@ -415,7 +513,11 @@ const ProposalDetail: React.FC = () => {
           </div>
           
           <div className="rounded-2xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-[rgba(255,255,255,0.06)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
-            <CommentSection proposalId={proposal._id} walletAddress={walletAddress} />
+            <CommentSection
+              proposalId={proposal._id}
+              walletAddress={walletAddress}
+              isClosed={isVotingClosed}
+            />
           </div>
         </motion.div>
       </div>

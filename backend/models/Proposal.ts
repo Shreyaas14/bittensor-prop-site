@@ -31,6 +31,11 @@ const ProposalSchema: Schema = new Schema(
       total_votes: { type: Number, default: 0 },
     },
     proposal_creator: { type: String, required: true },
+    voting_start: { type: Date, default: Date.now },
+    voting_end: {
+      type: Date,
+      default: () => Date.now() + 3 * 24 * 60 * 60 * 1000 // 3 days
+    },
   },
   { timestamps: true }
 );

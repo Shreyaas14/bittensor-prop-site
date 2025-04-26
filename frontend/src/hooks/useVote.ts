@@ -31,7 +31,9 @@ export const useVote = (proposalId: string) => {
       setLoading(false);
       return updatedProposal;
     } catch (err: any) {
-      setError(err.message || 'Error casting vote');
+      console.error('❌ Error casting vote →', err.response?.data ?? err);
+      const serverMsg = err.response?.data?.error;
+      setError(serverMsg || err.message || 'Error casting vote');
       setLoading(false);
     }
   };

@@ -29,7 +29,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/rifa/Desktop/Projects/BnF/Bittensor2.0/bittensor-prop-site/backend/.venv"
+set -gx VIRTUAL_ENV "/Users/rifa/Desktop/Projects/BnF/Bittensor3.0/backend/.venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

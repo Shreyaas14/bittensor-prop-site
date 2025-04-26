@@ -70,7 +70,7 @@ export const fetchProposals = async () => {
 export const getProposals = fetchProposals;
 
 // Get single proposal
-export const getProposal = async (id) => {
+export const getProposal = async (id: string) => {
   if (!id) {
     throw new Error('Proposal ID is required');
   }
@@ -100,6 +100,8 @@ export const getProposal = async (id) => {
       },
       walletAddress: backendData.proposal_creator || backendData.walletAddress || '',
       created_at: backendData.createdAt || backendData.created_at || new Date().toISOString(),
+      voting_start: backendData.voting_start,
+      voting_end: backendData.voting_end,
     };
   } catch (error) {
     console.error(`Error fetching proposal ${id}:`, error);
@@ -114,16 +116,20 @@ export const createProposal = async (proposalData) => {
     
     // Restructure the payload to match what the server expects
     // Based on the validation error, we need to maintain the nested structure
-    const serverPayload = {
+    const serverPayload: any = {
       proposal_creator: proposalData.proposal_creator,
       content: {
         title: proposalData.content.title,
         summary: proposalData.content.summary,
         abstract: proposalData.content.abstract,
-        full_proposal: proposalData.content.details // Note: server expects full_proposal, not details
+        full_proposal: proposalData.content.details, // server expects full_proposal
       },
-      voting_stats: proposalData.voting_stats || { yes: 0, no: 0, abstain: 0, total_votes: 0 }
+      voting_stats: proposalData.voting_stats,
     };
+    
+    // include voting_start/end if provided
+    if (proposalData.voting_start) serverPayload.voting_start = proposalData.voting_start;
+    if (proposalData.voting_end)   serverPayload.voting_end   = proposalData.voting_end;
     
     console.log('Restructured payload for server:', serverPayload);
     
@@ -149,14 +155,20 @@ export const createProposal = async (proposalData) => {
 };
 
 // Cast a vote on a proposal
-export const castVote = async (proposalId, voteType, wallet, voteWeight) => {
+export const castVote = async (proposalId: string, vote: 'yes' | 'no' | 'abstain', walletAddress: string, weight: number = 1) => {
   try {
-    // Changed from POST to PUT to match the backend route
-    const response = await api.put(`/api/proposals/${proposalId}/vote`, {
-      vote: voteType,
-      wallet,
-      weight: voteWeight
+    console.log(`Sending vote request for proposal ${proposalId}:`, {
+      vote,
+      weight,
+      walletAddress
     });
+    
+    const response = await api.put(`/api/proposals/${proposalId}/vote`, {
+      vote,
+      weight,
+      walletAddress
+    });
+    
     return response.data;
   } catch (error) {
     console.error('Error casting vote:', error);

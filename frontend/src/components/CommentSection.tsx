@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useComments, Comment as CommentType } from '@/hooks/useComments';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaThumbsUp, FaThumbsDown, FaReply, FaTimes, FaRegComment, FaUser, FaComment } from 'react-icons/fa';
+import { FaThumbsUp, FaThumbsDown, FaReply, FaTimes, FaRegComment, FaUser, FaComment, FaLock } from 'react-icons/fa';
 import { addComment, addReply, upvoteComment, downvoteComment, upvoteReply, downvoteReply } from '@/api/api';
 import { useAppContext } from '@/contexts/AppContext';
 
 interface CommentSectionProps {
   proposalId: string;
   walletAddress: string | null;
+  isClosed?: boolean;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddress: propWalletAddress }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ 
+  proposalId, 
+  walletAddress: propWalletAddress,
+  isClosed = false 
+}) => {
   // Use the app context to get the wallet address
   const { walletAddress: contextWalletAddress } = useAppContext();
   
@@ -28,7 +33,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
     console.log("CommentSection - Context Wallet Address:", contextWalletAddress);
     console.log("CommentSection - Prop Wallet Address:", propWalletAddress);
     console.log("CommentSection - Final Wallet Address:", walletAddress);
-  }, [contextWalletAddress, propWalletAddress, walletAddress]);
+    console.log("CommentSection - Is Closed:", isClosed);
+  }, [contextWalletAddress, propWalletAddress, walletAddress, isClosed]);
 
   // Helper function to truncate wallet address for display
   const truncateAddress = (address: string) => {
@@ -53,7 +59,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletAddress) return;
+    if (!walletAddress || isClosed) return;
     if (!newComment.trim()) return;
 
     setSubmitting(true);
@@ -73,7 +79,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
   };
 
   const handleSubmitReply = async (commentId: string) => {
-    if (!walletAddress || !replyContent.trim()) return;
+    if (!walletAddress || isClosed || !replyContent.trim()) return;
 
     setSubmitting(true);
     try {
@@ -90,7 +96,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
   };
 
   const handleUpvoteComment = async (commentId: string) => {
-    if (!walletAddress) return;
+    if (!walletAddress || isClosed) return;
     try {
       await upvoteComment(commentId, walletAddress);
       // Refresh comments after upvoting
@@ -101,7 +107,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
   };
 
   const handleDownvoteComment = async (commentId: string) => {
-    if (!walletAddress) return;
+    if (!walletAddress || isClosed) return;
     try {
       await downvoteComment(commentId, walletAddress);
       // Refresh comments after downvoting
@@ -112,7 +118,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
   };
 
   const handleUpvoteReply = async (commentId: string, replyIndex: number) => {
-    if (!walletAddress) return;
+    if (!walletAddress || isClosed) return;
     try {
       await upvoteReply(commentId, replyIndex, walletAddress);
       // Refresh comments after upvoting a reply
@@ -123,7 +129,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
   };
 
   const handleDownvoteReply = async (commentId: string, replyIndex: number) => {
-    if (!walletAddress) return;
+    if (!walletAddress || isClosed) return;
     try {
       await downvoteReply(commentId, replyIndex, walletAddress);
       // Refresh comments after downvoting a reply
@@ -140,36 +146,51 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
           <FaRegComment size={18} />
         </div>
         <span>Discussion</span>
+        {isClosed && (
+          <span className="ml-auto text-sm bg-orange-800/30 text-orange-300 px-2 py-1 rounded-full flex items-center">
+            <FaLock size={12} className="mr-1" />
+            Voting period ended
+          </span>
+        )}
       </h2>
       
       {/* Comment form */}
       {walletAddress ? (
         <div className="mb-8">
-          <div className="bg-[#111] rounded-xl p-5 border border-[#222] shadow-lg transition-all duration-300">
-            <div className="flex items-center mb-4">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal/30 to-teal/10 flex items-center justify-center font-mono text-white text-xs mr-3 border border-teal/20">
-                <span>{walletAddress.substring(2, 4)}</span>
-              </div>
-              <span className="font-mono text-sm text-gray-400">{truncateAddress(walletAddress)}</span>
+          {isClosed ? (
+            <div className="bg-[#111] rounded-xl p-5 border border-[#222] text-center">
+              <p className="text-orange-300/70 flex items-center justify-center gap-2">
+                <FaLock size={14} />
+                Commenting has been closed for this proposal
+              </p>
             </div>
-            <form onSubmit={handleSubmitComment} className="space-y-4">
-              <textarea
-                className="w-full bg-[#0a0a0a] text-white rounded-xl p-4 min-h-[120px] focus:outline-none focus:ring-1 focus:ring-teal border border-[#333] transition-all placeholder-gray-500 text-sm"
-                placeholder="Share your thoughts on this proposal..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-              />
-              <div className="flex justify-end">
-                <button 
-                  type="submit"
-                  className="bg-teal hover:bg-teal/90 text-black font-medium py-2.5 px-5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
-                  disabled={submitting || !newComment.trim()}
-                >
-                  {submitting ? 'Posting...' : 'Post Comment'}
-                </button>
+          ) : (
+            <div className="bg-[#111] rounded-xl p-5 border border-[#222] shadow-lg transition-all duration-300">
+              <div className="flex items-center mb-4">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal/30 to-teal/10 flex items-center justify-center font-mono text-white text-xs mr-3 border border-teal/20">
+                  <span>{walletAddress.substring(2, 4)}</span>
+                </div>
+                <span className="font-mono text-sm text-gray-400">{truncateAddress(walletAddress)}</span>
               </div>
-            </form>
-          </div>
+              <form onSubmit={handleSubmitComment} className="space-y-4">
+                <textarea
+                  className="w-full bg-[#0a0a0a] text-white rounded-xl p-4 min-h-[120px] focus:outline-none focus:ring-1 focus:ring-teal border border-[#333] transition-all placeholder-gray-500 text-sm"
+                  placeholder="Share your thoughts on this proposal..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                />
+                <div className="flex justify-end">
+                  <button 
+                    type="submit"
+                    className="bg-teal hover:bg-teal/90 text-black font-medium py-2.5 px-5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                    disabled={submitting || !newComment.trim()}
+                  >
+                    {submitting ? 'Posting...' : 'Post Comment'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mb-8 bg-[#111] rounded-xl p-6 border border-[#222] text-center">
@@ -190,11 +211,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
         <div className="space-y-6">
           {comments.length === 0 ? (
             <div className="bg-[#111] rounded-xl p-6 text-center border border-[#222]">
-              <p className="text-gray-400">No comments yet. Be the first to share your thoughts!</p>
+              <p className="text-gray-400">No comments yet. {!isClosed && "Be the first to share your thoughts!"}</p>
             </div>
           ) : (
             comments.map((comment) => (
-              <div key={comment._id} className="bg-[#111] rounded-xl p-5 border border-[#1a1a1a] shadow-md transition-all hover:border-[#333]">
+              <div key={comment._id} className={`bg-[#111] rounded-xl p-5 border ${isClosed ? 'border-[#333333]/30' : 'border-[#1a1a1a] hover:border-[#333]'} shadow-md transition-all`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center">
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal/30 to-teal/10 flex items-center justify-center font-mono text-white text-xs border border-teal/20">
@@ -235,8 +256,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
                             comment.upvotedBy?.includes(walletAddress || '') 
                               ? 'text-teal' 
                               : 'text-gray-500 hover:text-teal'
-                          }`}
-                          disabled={!walletAddress}
+                          } ${isClosed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          disabled={!walletAddress || isClosed}
                         >
                           <FaThumbsUp size={14} />
                           <span>{comment.upvotes}</span>
@@ -248,8 +269,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
                             comment.downvotedBy?.includes(walletAddress || '') 
                               ? 'text-gradient-orange' 
                               : 'text-gray-500 hover:text-gradient-orange'
-                          }`}
-                          disabled={!walletAddress}
+                          } ${isClosed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          disabled={!walletAddress || isClosed}
                         >
                           <FaThumbsDown size={14} />
                           <span>{comment.downvotes}</span>
@@ -257,7 +278,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
                       </>
                     )}
                   
-                    {walletAddress && (
+                    {walletAddress && !isClosed && (
                       <button 
                         onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
                         className="flex items-center space-x-1 text-gray-500 hover:text-white transition-colors"
@@ -274,7 +295,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
               
                 {/* Reply form */}
                 <AnimatePresence>
-                  {replyingTo === comment._id && walletAddress && (
+                  {replyingTo === comment._id && walletAddress && !isClosed && (
                     <motion.div 
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -320,7 +341,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
                   
                     <div className="space-y-3 mt-3">
                       {comment.replies.map((reply, index) => (
-                        <div key={index} className="bg-[#0a0a0a] rounded-xl p-4 ml-6 border border-[#1a1a1a] transition-all hover:border-[#333]">
+                        <div key={index} className={`bg-[#0a0a0a] rounded-xl p-4 ml-6 border ${isClosed ? 'border-[#333333]/30' : 'border-[#1a1a1a] hover:border-[#333]'} transition-all`}>
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center">
                               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal/30 to-teal/10 flex items-center justify-center font-mono text-white text-xs border border-teal/20">
@@ -361,8 +382,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
                                       reply.upvotedBy?.includes(walletAddress || '') 
                                         ? 'text-teal' 
                                         : 'text-gray-500 hover:text-teal'
-                                    }`}
-                                    disabled={!walletAddress}
+                                    } ${isClosed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={!walletAddress || isClosed}
                                   >
                                     <FaThumbsUp size={12} />
                                     <span className="text-xs">{reply.upvotes}</span>
@@ -374,8 +395,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ proposalId, walletAddre
                                       reply.downvotedBy?.includes(walletAddress || '') 
                                         ? 'text-gradient-orange' 
                                         : 'text-gray-500 hover:text-gradient-orange'
-                                    }`}
-                                    disabled={!walletAddress}
+                                    } ${isClosed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={!walletAddress || isClosed}
                                   >
                                     <FaThumbsDown size={12} />
                                     <span className="text-xs">{reply.downvotes}</span>

@@ -1,4 +1,4 @@
-#!/Users/rifa/Desktop/Projects/BnF/Bittensor2.0/bittensor-prop-site/backend/venv/bin/python
+#!/Users/rifa/Desktop/Projects/BnF/Bittensor3.0/backend/venv/bin/python3.13
 # -*- coding: utf-8 -*-
 import re
 import sys

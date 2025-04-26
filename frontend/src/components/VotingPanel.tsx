@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { useVote } from "@/hooks/useVote";
 import { useSocket } from "@/hooks/useSocket";
 import WalletConnectButton from "@/components/ui/WalletConnectButton";
-import { FaClock, FaCheckCircle, FaMinusCircle, FaTimesCircle } from "react-icons/fa";
+import { FaClock, FaCheckCircle, FaMinusCircle, FaTimesCircle, FaLock, FaCheck } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "@/contexts/AppContext";
 
@@ -24,10 +24,16 @@ interface DateInfo {
 interface VotingPanelProps {
   proposalId: string;
   votingStats: VotingStats;
-  dates: DateInfo;
+  dates: {
+    votingCreatedAt: string;
+    votingStart: string;
+    votingEnd: string;
+  };
+  isVotingClosed: boolean;
+  endDateFormatted: string;
 }
 
-const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: initialVotingStats, dates }) => {
+const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: initialVotingStats, dates, isVotingClosed, endDateFormatted }) => {
   const { vote, loading, error } = useVote(proposalId);
   const socket = useSocket();
   const { walletAddress, taoBalance } = useAppContext();
@@ -41,6 +47,41 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
     created: new Date(dates.votingCreatedAt),
     start: new Date(dates.votingStart),
     end: new Date(dates.votingEnd)
+  };
+
+  // keep a "now" that ticks every minute
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // format a delta‐ms into "Xd Yh Zm"
+  const formatTimeRemaining = (ms: number) => {
+    const totalSec = Math.floor(ms / 1000);
+    const days    = Math.floor(totalSec / 86400);
+    const hours   = Math.floor((totalSec % 86400) / 3600);
+    const mins    = Math.floor((totalSec % 3600) / 60);
+    const parts: string[] = [];
+    if (days)  parts.push(`${days}d`);
+    if (hours) parts.push(`${hours}h`);
+    parts.push(`${mins}m`);
+    return parts.join(" ");
+  };
+
+  // decide what to show in the header badge
+  const isBeforeStart = now < timeline.start;
+  const isActive      = now >= timeline.start && now <= timeline.end;
+  const isEnded       = now > timeline.end;
+
+  const getHeaderLabel = () => {
+    if (isBeforeStart) {
+      return `Starts in ${formatTimeRemaining(timeline.start.getTime() - now.getTime())}`;
+    }
+    if (isActive) {
+      return `Ends in ${formatTimeRemaining(timeline.end.getTime() - now.getTime())}`;
+    }
+    return `Voting ended on ${endDateFormatted}`;
   };
 
   useEffect(() => {
@@ -70,6 +111,11 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
       setShowWalletAlert(true);
       return;
     }
+    
+    if (isVotingClosed) {
+      return;
+    }
+    
     if (hasVoted) return;
     
     // Special case for hardcoded wallet address - allow voting without TAO
@@ -110,7 +156,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   const yesPercentage = (votingStats.yes / totalVotes) * 100;
   const noPercentage = (votingStats.no / totalVotes) * 100;
   const abstainPercentage = (votingStats.abstain / totalVotes) * 100;
-  const isVotingActive = new Date() < timeline.end;
+  const isVotingActive = !isVotingClosed;
 
   // Time remaining calculation
   const getTimeRemaining = () => {
@@ -126,10 +172,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
   };
 
   // Check if voting has ended
-  const hasVotingEnded = () => {
-    const now = new Date();
-    return now > timeline.end;
-  };
+  const hasVotingEnded = () => isVotingClosed;
 
   // Determine if proposal passed
   const didProposalPass = () => {
@@ -230,151 +273,157 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
           <h2 className="text-xl font-medium text-white mb-6">Cast Your Vote</h2>
         
           {/* Voting Options */}
-          <div className="space-y-4 mb-6">
-            <motion.button
-              className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
-                selectedVote === "yes" 
-                  ? "bg-[#00DBBC]/10 border border-[#00DBBC] text-[#00DBBC]" 
-                  : "bg-[#1A1A1A] text-white hover:border-[#00DBBC]/50 hover:bg-[#00DBBC]/5"
-              }`}
-              onClick={() => setSelectedVote("yes")}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              disabled={hasVotingEnded() || hasVoted}
-            >
-              <span className="flex items-center">
-                <motion.span 
-                  className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                    selectedVote === "yes" ? "border-[#00DBBC]" : "border-gray-600"
-                  }`}
-                >
-                  {selectedVote === "yes" && (
-                    <motion.div 
-                      className="w-2.5 h-2.5 rounded-full bg-[#00DBBC]"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  )}
-                </motion.span>
-                Yes
-              </span>
-              {selectedVote === "yes" && (
-                <motion.svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="20" 
-                  height="20" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </motion.svg>
-              )}
-            </motion.button>
-            
-            <motion.button
-              className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
-                selectedVote === "no" 
-                  ? "bg-[#EB5347]/10 border border-[#EB5347] text-[#EB5347]" 
-                  : "bg-[#1A1A1A] text-white hover:border-[#EB5347]/50 hover:bg-[#EB5347]/5"
-              }`}
-              onClick={() => setSelectedVote("no")}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              disabled={hasVotingEnded() || hasVoted}
-            >
-              <span className="flex items-center">
-                <motion.span 
-                  className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                    selectedVote === "no" ? "border-[#EB5347]" : "border-gray-600"
-                  }`}
-                >
-                  {selectedVote === "no" && (
-                    <motion.div 
-                      className="w-2.5 h-2.5 rounded-full bg-[#EB5347]"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  )}
-                </motion.span>
-                No
-              </span>
-              {selectedVote === "no" && (
-                <motion.svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="20" 
-                  height="20" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </motion.svg>
-              )}
-            </motion.button>
-            
-            <motion.button
-              className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
-                selectedVote === "abstain" 
-                  ? "bg-white/10 border border-white text-white" 
-                  : "bg-[#1A1A1A] text-white hover:border-white/50 hover:bg-white/5"
-              }`}
-              onClick={() => setSelectedVote("abstain")}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              disabled={hasVotingEnded() || hasVoted}
-            >
-              <span className="flex items-center">
-                <motion.span 
-                  className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                    selectedVote === "abstain" ? "border-white" : "border-gray-600"
-                  }`}
-                >
-                  {selectedVote === "abstain" && (
-                    <motion.div 
-                      className="w-2.5 h-2.5 rounded-full bg-white"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  )}
-                </motion.span>
-                Abstain
-              </span>
-              {selectedVote === "abstain" && (
-                <motion.svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="20" 
-                  height="20" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </motion.svg>
-              )}
-            </motion.button>
-          </div>
+          {isVotingActive ? (
+            <div className="space-y-4 mb-6">
+              <motion.button
+                className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
+                  selectedVote === "yes" 
+                    ? "bg-[#00DBBC]/10 border border-[#00DBBC] text-[#00DBBC]" 
+                    : "bg-[#1A1A1A] text-white hover:border-[#00DBBC]/50 hover:bg-[#00DBBC]/5"
+                }`}
+                onClick={() => setSelectedVote("yes")}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                disabled={hasVotingEnded() || hasVoted}
+              >
+                <span className="flex items-center">
+                  <motion.span 
+                    className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                      selectedVote === "yes" ? "border-[#00DBBC]" : "border-gray-600"
+                    }`}
+                  >
+                    {selectedVote === "yes" && (
+                      <motion.div 
+                        className="w-2.5 h-2.5 rounded-full bg-[#00DBBC]"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </motion.span>
+                  Yes
+                </span>
+                {selectedVote === "yes" && (
+                  <motion.svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </motion.svg>
+                )}
+              </motion.button>
+              
+              <motion.button
+                className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
+                  selectedVote === "no" 
+                    ? "bg-[#EB5347]/10 border border-[#EB5347] text-[#EB5347]" 
+                    : "bg-[#1A1A1A] text-white hover:border-[#EB5347]/50 hover:bg-[#EB5347]/5"
+                }`}
+                onClick={() => setSelectedVote("no")}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                disabled={hasVotingEnded() || hasVoted}
+              >
+                <span className="flex items-center">
+                  <motion.span 
+                    className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                      selectedVote === "no" ? "border-[#EB5347]" : "border-gray-600"
+                    }`}
+                  >
+                    {selectedVote === "no" && (
+                      <motion.div 
+                        className="w-2.5 h-2.5 rounded-full bg-[#EB5347]"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </motion.span>
+                  No
+                </span>
+                {selectedVote === "no" && (
+                  <motion.svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </motion.svg>
+                )}
+              </motion.button>
+              
+              <motion.button
+                className={`w-full p-4 rounded-xl text-left flex items-center justify-between transition-all duration-200 ${
+                  selectedVote === "abstain" 
+                    ? "bg-white/10 border border-white text-white" 
+                    : "bg-[#1A1A1A] text-white hover:border-white/50 hover:bg-white/5"
+                }`}
+                onClick={() => setSelectedVote("abstain")}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                disabled={hasVotingEnded() || hasVoted}
+              >
+                <span className="flex items-center">
+                  <motion.span 
+                    className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                      selectedVote === "abstain" ? "border-white" : "border-gray-600"
+                    }`}
+                  >
+                    {selectedVote === "abstain" && (
+                      <motion.div 
+                        className="w-2.5 h-2.5 rounded-full bg-white"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </motion.span>
+                  Abstain
+                </span>
+                {selectedVote === "abstain" && (
+                  <motion.svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </motion.svg>
+                )}
+              </motion.button>
+            </div>
+          ) : (
+            <p className="mt-4 text-center text-white/50 italic">
+              Voting has closed — here are the results.
+            </p>
+          )}
           
           <motion.button
             className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-all duration-200 ${
@@ -408,7 +457,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
 
         {/* Results Section */}
         <motion.div 
-          className="p-6 bg-[#121212] mt-2"
+          className="p-6 bg-[#141414] mt-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -527,10 +576,22 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
             >
               <motion.div 
                 className="absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full bg-white"
-                animate={{ 
-                  boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 5px rgba(255, 255, 255, 0.7)", "0 0 0px rgba(255, 255, 255, 0)"]
+                animate={
+                  isBeforeStart
+                    ? {
+                        boxShadow: [
+                          "0 0 0px rgba(255,255,255,0)",
+                          "0 0 5px rgba(255,255,255,0.7)",
+                          "0 0 0px rgba(255,255,255,0)",
+                        ],
+                      }
+                    : {}
+                }
+                transition={{
+                  duration: 2,
+                  repeat: isBeforeStart ? Infinity : 0,
+                  repeatType: "reverse",
                 }}
-                transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
               ></motion.div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-white">Created</p>
@@ -546,11 +607,30 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
               transition={{ delay: 0.9 }}
             >
               <motion.div 
-                className="absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full bg-white"
-                animate={{ 
-                  boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 5px rgba(255, 255, 255, 0.7)", "0 0 0px rgba(255, 255, 255, 0)"]
+                className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${
+                  isBeforeStart
+                    ? "bg-white/50"
+                    : isActive
+                    ? "bg-[#00DBBC]"
+                    : "bg-white"
+                }`}
+                animate={
+                  isActive
+                    ? {
+                        boxShadow: [
+                          "0 0 0px rgba(0,219,188,0)",
+                          "0 0 5px rgba(0,219,188,0.7)",
+                          "0 0 0px rgba(0,219,188,0)",
+                        ],
+                      }
+                    : {}
+                }
+                transition={{
+                  duration: 2,
+                  repeat: isActive ? Infinity : 0,
+                  repeatType: "reverse",
+                  delay: 0.7,
                 }}
-                transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", delay: 0.7 }}
               ></motion.div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-white">Voting Start</p>
@@ -566,11 +646,30 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
               transition={{ delay: 1 }}
             >
               <motion.div 
-                className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${hasVotingEnded() ? 'bg-white' : 'bg-white/70'}`}
-                animate={hasVotingEnded() ? { 
-                  boxShadow: ["0 0 0px rgba(255, 255, 255, 0)", "0 0 5px rgba(255, 255, 255, 0.7)", "0 0 0px rgba(255, 255, 255, 0)"]
-                } : {}}
-                transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", delay: 1.4 }}
+                className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${
+                  isActive
+                    ? "bg-white/50"
+                    : isEnded
+                    ? "bg-white"
+                    : "bg-white/50"
+                }`}
+                animate={
+                  isEnded
+                    ? {
+                        boxShadow: [
+                          "0 0 0px rgba(255,255,255,0)",
+                          "0 0 5px rgba(255,255,255,0.7)",
+                          "0 0 0px rgba(255,255,255,0)",
+                        ],
+                      }
+                    : {}
+                }
+                transition={{
+                  duration: 2,
+                  repeat: isEnded ? Infinity : 0,
+                  repeatType: "reverse",
+                  delay: 1.4,
+                }}
               ></motion.div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-white">Voting End</p>
@@ -579,7 +678,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
             </motion.div>
             
             {/* Result (if voting has ended) */}
-            {hasVotingEnded() && (
+            {isEnded && (
               <motion.div 
                 className="mt-8 relative"
                 initial={{ opacity: 0, y: 10 }}
@@ -587,18 +686,30 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
                 transition={{ delay: 1.2 }}
               >
                 <motion.div 
-                  className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${didProposalPass() ? 'bg-[#00DBBC]' : 'bg-[#EB5347]'}`}
-                  animate={{ 
-                    boxShadow: didProposalPass() 
-                      ? ["0 0 0px rgba(0, 219, 188, 0)", "0 0 8px rgba(0, 219, 188, 0.9)", "0 0 0px rgba(0, 219, 188, 0)"]
-                      : ["0 0 0px rgba(235, 83, 71, 0)", "0 0 8px rgba(235, 83, 71, 0.9)", "0 0 0px rgba(235, 83, 71, 0)"],
-                    scale: [1, 1.2, 1]
+                  className={`absolute -left-[3px] top-0 w-[5px] h-[5px] rounded-full ${
+                    didProposalPass() ? "bg-[#00DBBC]" : "bg-[#EB5347]"
+                  }`}
+                  animate={{
+                    boxShadow: didProposalPass()
+                      ? [
+                          "0 0 0px rgba(0,219,188,0)",
+                          "0 0 8px rgba(0,219,188,0.9)",
+                          "0 0 0px rgba(0,219,188,0)",
+                        ]
+                      : [
+                          "0 0 0px rgba(235,83,71,0)",
+                          "0 0 8px rgba(235,83,71,0.9)",
+                          "0 0 0px rgba(235,83,71,0)",
+                        ],
+                    scale: [1, 1.2, 1],
                   }}
                   transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
                 ></motion.div>
                 <div className="ml-4">
                   <motion.p
-                    className={`text-sm font-medium ${didProposalPass() ? "text-[#00DBBC]" : "text-[#EB5347]"}`}
+                    className={`text-sm font-medium ${
+                      didProposalPass() ? "text-[#00DBBC]" : "text-[#EB5347]"
+                    }`}
                     animate={{ 
                       scale: [1, 1.05, 1]
                     }}

@@ -18,6 +18,12 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 const FLASK_SERVER = process.env.FLASK_SERVER || "http://127.0.0.1:5001";
 
+// ─── BODY PARSING MIDDLEWARE ────────────────────────────────────────────────────
+// without this, req.body will be undefined and every POST/PUT with a JSON body
+// blows up with a 500
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // ===== CORS CONFIGURATION =====
 app.use(cors());
 
@@ -34,11 +40,17 @@ app.options('*', (req, res) => {
   res.status(200).end();
 });
 
-app.use(express.json());
-
 // Middleware
 app.use((req, res, next) => {
+  // Log all incoming requests
   console.log(`${req.method} ${req.url}`);
+  
+  // For POST/PUT requests, log the body
+  if (req.method === 'POST' || req.method === 'PUT') {
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+  }
+  
+  // Continue to the next middleware
   next();
 });
 
@@ -194,8 +206,21 @@ app.get('/api/proposals', async (req, res) => {
 // Get Proposal by ID
 app.get('/api/proposals/:id', async (req, res) => {
   try {
-    const proposal = await Proposal.findById(req.params.id);
-    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid proposal ID format' });
+    }
+    
+    let proposal;
+    try {
+      proposal = await Proposal.findById(req.params.id);
+    } catch (findErr) {
+      console.error('Error finding proposal:', findErr);
+      return res.status(500).json({ error: 'Database error when finding proposal' });
+    }
+
+    if (!proposal) {
+      return res.status(404).json({ error: 'Proposal not found' });
+    }
     res.json(proposal);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -205,21 +230,67 @@ app.get('/api/proposals/:id', async (req, res) => {
 // Update Votes
 app.put('/api/proposals/:id/vote', async (req, res) => {
   try {
-    const { vote, weight = 1 } = req.body;
-    const proposal = await Proposal.findById(req.params.id);
-    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    // Log the full request body for debugging
+    console.log(`Vote request received for proposal ${req.params.id}:`, req.body);
+    
+    const { vote, weight = 1, walletAddress } = req.body;
+    
+    if (!vote) {
+      return res.status(400).json({ error: 'Vote type (yes/no/abstain) is required' });
+    }
+    
+    // Find the proposal with better error handling
+    let proposal;
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: 'Invalid proposal ID format' });
+      }
+      
+      proposal = await Proposal.findById(req.params.id);
+    } catch (findErr) {
+      console.error('Error finding proposal:', findErr);
+      return res.status(500).json({ error: 'Database error when finding proposal' });
+    }
 
-    if (vote === 'yes') proposal.voting_stats.yes += weight;
-    else if (vote === 'no') proposal.voting_stats.no += weight;
-    else if (vote === 'abstain') proposal.voting_stats.abstain += weight;
-
-    proposal.voting_stats.total_votes += weight;
-    const updatedProposal = await proposal.save();
-
-    io.emit('voteUpdate', updatedProposal);
-    res.json(updatedProposal);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (!proposal) {
+      return res.status(404).json({ error: 'Proposal not found' });
+    }
+    
+    // Initialize voting_stats if it doesn't exist
+    if (!proposal.voting_stats) {
+      proposal.voting_stats = {
+        yes: 0,
+        no: 0,
+        abstain: 0,
+        total_votes: 0
+      };
+    }
+    
+    // Update vote counts based on vote type
+    if (vote === 'yes') {
+      proposal.voting_stats.yes = (proposal.voting_stats.yes || 0) + weight;
+    } else if (vote === 'no') {
+      proposal.voting_stats.no = (proposal.voting_stats.no || 0) + weight;
+    } else if (vote === 'abstain') {
+      proposal.voting_stats.abstain = (proposal.voting_stats.abstain || 0) + weight;
+    } else {
+      return res.status(400).json({ error: `Invalid vote: ${vote}` });
+    }
+    
+    // Update total votes
+    proposal.voting_stats.total_votes = (proposal.voting_stats.total_votes || 0) + weight;
+    
+    // Save the updated proposal
+    const updated = await proposal.save();
+    console.log('Vote recorded successfully:', updated.voting_stats);
+    
+    // Emit socket event with the updated proposal
+    io.emit('voteUpdate', updated);
+    
+    return res.json(updated);
+  } catch (err) {
+    console.error('❌ Error in /api/proposals/:id/vote →', err);
+    return res.status(500).json({ error: err.message || 'Server error' });
   }
 });
 

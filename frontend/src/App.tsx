@@ -39,9 +39,11 @@ const SidebarLayout: React.FC<{
       {sidebar}
       <main className="flex-1 overflow-auto p-0 bg-[#141414]">{main}</main>
       {rightPanel ? (
-        <aside className="w-80 border-l border-[#222] flex flex-col bg-[#141414]">{rightPanel}</aside>
+        <aside className="w-80 border-l border-[#222] flex flex-col bg-[#141414] overflow-y-auto">
+          {rightPanel}
+        </aside>
       ) : (
-        <aside className="w-0 lg:w-80 transition-all duration-300 border-l border-[#222] bg-[#141414]"></aside>
+        <aside className="w-0 lg:w-80 transition-all duration-300 border-l border-[#222] bg-[#141414] overflow-y-auto"></aside>
       )}
     </div>
   );
@@ -171,18 +173,18 @@ const AppContent: React.FC<{ onWalletConnect: (address: string | null, taoBalanc
               main={<ProposalDetail />}
               rightPanel={
                 selectedProposal && (
-                  <div className="h-full flex flex-col max-h-[calc(100vh-3.5rem)]">
-                    <VotingPanel
-                      proposalId={selectedProposal._id}
-                      votingStats={{
-                        yes: selectedProposal.voting_stats.yes,
-                        no: selectedProposal.voting_stats.no,
-                        abstain: selectedProposal.voting_stats.abstain,
-                        total_votes: selectedProposal.voting_stats.total_votes,
-                      }}
-                      dates={dummyDates}
-                    />
-                  </div>
+                  <VotingPanel
+                    proposalId={selectedProposal._id}
+                    votingStats={{
+                      yes: selectedProposal.voting_stats.yes,
+                      no: selectedProposal.voting_stats.no,
+                      abstain: selectedProposal.voting_stats.abstain,
+                      total_votes: selectedProposal.voting_stats.total_votes,
+                    }}
+                    dates={dummyDates}
+                    isVotingClosed={false}
+                    endDateFormatted={dummyDates.votingEnd}
+                  />
                 )
               }
             />

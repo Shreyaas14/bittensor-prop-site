@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/rifa/Desktop/Projects/BnF/Bittensor2.0/bittensor-prop-site/backend/.venv"
+VIRTUAL_ENV="/Users/rifa/Desktop/Projects/BnF/Bittensor3.0/backend/.venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

@@ -1,8 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createProposal } from '@/api/api';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaFileAlt, FaPen, FaUserAlt, FaTimes, FaArrowRight, FaCheck, FaExclamationCircle } from 'react-icons/fa';
+import { FaFileAlt, FaPen, FaUserAlt, FaTimes, FaArrowRight, FaCheck, FaExclamationCircle, FaWallet } from 'react-icons/fa';
+
+// 1) import your context and WalletConnectButton
+import { useAppContext } from '@/contexts/AppContext';
+import WalletConnectButton from '@/components/ui/WalletConnectButton';
 
 // Define form field component to reduce repetition
 const FormField = ({ label, hint, children }) => (
@@ -29,25 +33,50 @@ const FormSection = ({ title, icon, children }) => (
 );
 
 const ProposalCreation = () => {
+  const navigate = useNavigate();
+
+  // 2) grab walletAddress & taoBalance (and setters) from context
+  const { walletAddress, taoBalance, setWalletAddress, setTaoBalance } = useAppContext();
+
+  // callback passed into WalletConnectButton:
+  const handleWalletConnect = (address: string | null, balance: number) => {
+    setWalletAddress(address);
+    setTaoBalance(balance);
+  };
+
   // Use refs for direct DOM access
   const titleRef = useRef(null);
   const summaryRef = useRef(null);
   const abstractRef = useRef(null);
   const fullProposalRef = useRef(null);
-  const creatorRef = useRef(null);
   
   // State for form values
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [abstract, setAbstract] = useState('');
   const [fullProposal, setFullProposal] = useState('');
-  const [creator, setCreator] = useState('');
-  
+
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
+
+  // Move these calculations outside of handleSubmit to the component level
+  const closingDate = useMemo(
+    () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    []
+  );
+  
+  const closingDateFormatted = useMemo(() => {
+    return closingDate.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }, [closingDate]);
 
   // Simple event handlers without useCallback
   const handleTitleChange = (e) => {
@@ -74,16 +103,10 @@ const ProposalCreation = () => {
     setFullProposal(newValue);
   };
 
-  const handleCreatorChange = (e) => {
-    const newValue = e.target.value;
-    console.log('Creator changing to:', newValue);
-    setCreator(newValue);
-  };
-
   // Debug effect to monitor state changes
   useEffect(() => {
-    console.log('State updated:', { title, summary, abstract, fullProposal, creator });
-  }, [title, summary, abstract, fullProposal, creator]);
+    console.log('State updated:', { title, summary, abstract, fullProposal });
+  }, [title, summary, abstract, fullProposal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,13 +114,13 @@ const ProposalCreation = () => {
     setFormError(null);
 
     // Basic validation
-    if (!title.trim() || !summary.trim() || !creator.trim()) {
+    if (!title.trim() || !summary.trim()) {
       setFormError("Please fill out all required fields");
       setIsSubmitting(false);
       return;
     }
 
-    console.log('Submitting form with values:', { title, summary, abstract, fullProposal, creator });
+    console.log('Submitting form with values:', { title, summary, abstract, fullProposal, creator: walletAddress });
 
     const proposalPayload = {
       content: { 
@@ -107,7 +130,9 @@ const ProposalCreation = () => {
         details: fullProposal
       },
       voting_stats: { yes: 0, no: 0, abstain: 0, total_votes: 0 },
-      proposal_creator: creator
+      proposal_creator: walletAddress,
+      voting_start: new Date().toISOString(),
+      voting_end: closingDate.toISOString(),
     };
 
     try {
@@ -135,6 +160,30 @@ const ProposalCreation = () => {
       setIsSubmitting(false);
     }
   };
+
+  // 3) If no wallet is connected, show the connect-wallet UI
+  if (!walletAddress) {
+    return (
+      <div className="min-h-screen bg-[#141414] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-b from-[#1c1c1c] to-[#181818] p-8 rounded-xl max-w-md w-full text-center border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+        >
+          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-white/5 rounded-full">
+            <FaWallet className="text-white text-2xl" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Connect Your Wallet
+          </h2>
+          <p className="text-white/70 mb-6">
+            You need to connect your wallet before creating a proposal.
+          </p>
+          <WalletConnectButton onConnect={handleWalletConnect} />
+        </motion.div>
+      </div>
+    );
+  }
 
   // If success, show success message
   if (success) {
@@ -289,18 +338,27 @@ const ProposalCreation = () => {
                 </div>
                 
                 <div className="p-8 rounded-xl bg-gradient-to-b from-[#1c1c1c] to-[#181818] border border-white/10 shadow-lg backdrop-blur-sm">
-                  <FormField 
+                  <FormField
                     label="Your Wallet Address"
-                    hint="This will be recorded as the proposal creator and cannot be changed later."
+                    hint="This address comes from your connected wallet and cannot be changed."
                   >
                     <input
-                      ref={creatorRef}
                       type="text"
-                      value={creator}
-                      onChange={handleCreatorChange}
-                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none font-mono transition-all duration-200 hover:border-white/20"
-                      placeholder="Enter your wallet address (0x...)"
-                      required
+                      value={walletAddress}
+                      disabled
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg font-mono cursor-not-allowed opacity-70"
+                    />
+                  </FormField>
+                
+                  <FormField
+                    label="Proposal Closing Date"
+                    hint="This proposal will stop accepting votes & comments after this date."
+                  >
+                    <input
+                      type="text"
+                      value={closingDateFormatted}
+                      disabled
+                      className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg font-mono cursor-not-allowed opacity-70"
                     />
                   </FormField>
                 </div>
