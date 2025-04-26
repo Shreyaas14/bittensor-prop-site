@@ -16,6 +16,8 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "ts-node": "^10.9.1",
+    "typescript": "~5.0.4"
   }
 }
