@@ -15,15 +15,17 @@ build/
 .env
 .env.save
 
-# Python virtual envs
-venv/
+# Python virtual envs (ignore anywhere under this folder)
 .venv/
+venv/
+**/.venv/
+**/venv/
 
 # Lock files
 bun.lock
 package-lock.json
 
-# IDE / editor folders
+# IDE / editor
 .vscode/
 .idea/
 
@@ -35,7 +37,7 @@ Thumbs.db
 logs/
 *.log
 
-# Debugging scripts (if you don't want them in git)
+# Debugging scripts
 debugProposals.js
 test-api.js
 
