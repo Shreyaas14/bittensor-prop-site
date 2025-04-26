@@ -53,3 +53,19 @@ wallet_service.py
 
 # Mongoose models folder (if you want to ignore generated/dist models)
 models/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python package files
+*.egg-info/
+.eggs/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
