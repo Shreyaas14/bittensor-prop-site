@@ -1,0 +1,20 @@
+{
+  "name": "Bittensor3.0",
+  "version": "1.0.0",
+  "description": "Bittensor Governance Platform",
+  "scripts": {
+    "start-wallet": "cd backend && source .venv/bin/activate && python wallet_service.py",
+    "start-server": "cd backend && ts-node server.ts",
+    "start-frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run start-wallet\" \"npm run start-server\" \"npm run start-frontend\"",
+    "build-frontend": "cd frontend && npm run build",
+    "start-prod": "concurrently \"npm run start-wallet\" \"npm run start-server\" \"cd frontend && npm run preview\"",
+    "install-deps": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
