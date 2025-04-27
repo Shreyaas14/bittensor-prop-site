@@ -114,14 +114,16 @@ const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onConnect, is
       const provider = new WsProvider("wss://entrypoint-finney.opentensor.ai:443");
       const api = await ApiPromise.create({ provider });
 
-      // Simulating balance fetch - in production, use actual API call
-      const { data: balanceData } = await axios.get(`https://taobalance.bittensor.com/${account}`);
+      // Use a proxy endpoint on your backend to avoid CORS issues
+      // Instead of directly calling the external API
+      const { data: balanceData } = await axios.get(`http://127.0.0.1:5001/proxy/taobalance/${account}`);
       const balance = parseFloat(balanceData.balance) || 0;
       console.log(`TAO Balance for ${account}:`, balance);
 
       setTaoBalance(balance);
     } catch (err) {
       console.error("Error fetching TAO balance:", err);
+      // Fallback to a default value if the API call fails
       setTaoBalance(0);
     }
   };
@@ -195,6 +197,29 @@ const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onConnect, is
 
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
+
+  const disconnectWallet = () => {
+    // Immediately clear all state and storage
+    localStorage.removeItem("jwt");
+    localStorage.removeItem("walletAddress");
+    localStorage.removeItem("taoBalance");
+    localStorage.removeItem("votedProposals");
+    sessionStorage.clear();
+    
+    // Reset component state
+    setSession(null);
+    setSelectedAccount(null);
+    setAccounts([]);
+    setTaoBalance(0);
+    
+    // Call the onConnect callback with null
+    if (onConnect) {
+      onConnect(null, 0);
+    }
+    
+    // Force an immediate page reload
+    window.location.href = window.location.origin;
   };
 
   // Notification component
@@ -347,6 +372,47 @@ const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({ onConnect, is
               {error}
             </motion.p>
           )}
+        </motion.div>
+      ) : session ? (
+        <motion.div
+          className="relative"
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+        >
+          <motion.button
+            className="flex items-center justify-between w-full bg-black border border-white/20 text-white rounded-md px-3 py-1.5 text-sm font-medium"
+            whileHover={{ 
+              borderColor: "rgba(255,255,255,0.4)",
+              boxShadow: "0 0 8px rgba(255,255,255,0.1)"
+            }}
+          >
+            <div className="flex items-center">
+              <FaWallet className="mr-2" size={14} />
+              <span>{formatAddress(session.address)}</span>
+            </div>
+            <div className="flex items-center ml-2">
+              <span className="text-teal mr-2">{taoBalance.toFixed(2)} τ</span>
+              <FaChevronDown size={12} className={`transition-transform ${isHovering ? 'rotate-180' : ''}`} />
+            </div>
+          </motion.button>
+          
+          <AnimatePresence>
+            {isHovering && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="absolute top-full right-0 mt-1 w-full bg-card border border-border rounded-md shadow-lg overflow-hidden z-10"
+              >
+                <button
+                  onClick={disconnectWallet}
+                  className="w-full text-left px-3 py-2 text-white hover:bg-background-secondary transition-colors"
+                >
+                  Disconnect
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       ) : (
         <motion.button

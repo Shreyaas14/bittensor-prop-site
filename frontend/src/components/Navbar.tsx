@@ -119,6 +119,27 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
     };
   }, []);
   
+  const handleDisconnect = () => {
+    // Clear all wallet-related state
+    localStorage.removeItem("jwt");
+    localStorage.removeItem("walletAddress");
+    localStorage.removeItem("taoBalance");
+    localStorage.removeItem("votedProposals");
+    
+    // Update state
+    setWalletAddress(null);
+    setTaoBalance(0);
+    setShowWalletDropdown(false);
+    
+    // Call the callback if it exists
+    if (onWalletConnect) {
+      onWalletConnect(null, 0);
+    }
+    
+    // Force reload the page
+    window.location.href = window.location.origin;
+  };
+  
   return (
     <>
       <div ref={navbarRef} className="fixed top-0 left-0 right-0 z-50">
@@ -224,14 +245,7 @@ const Navbar: React.FC<NavbarProps> = ({ proposals = [], onWalletConnect }) => {
                                 <p className="text-white font-medium font-everett">{taoBalance.toFixed(2)} TAO</p>
                               </div>
                               <button
-                                onClick={() => {
-                                  setWalletAddress(null);
-                                  setTaoBalance(0);
-                                  setShowWalletDropdown(false);
-                                  if (onWalletConnect) {
-                                    onWalletConnect(null, 0);
-                                  }
-                                }}
+                                onClick={handleDisconnect}
                                 className="w-full mt-2 py-2 text-white/80 hover:text-white text-sm bg-[#252525] hover:bg-[#2a2a2a] rounded-md transition-colors font-everett"
                               >
                                 Disconnect

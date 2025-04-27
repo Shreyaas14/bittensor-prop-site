@@ -625,6 +625,27 @@ app.get('/debug/routes', (req, res) => {
   res.json(routes);
 });
 
+// Proxy endpoint to avoid CORS issues with external APIs
+app.get('/proxy/taobalance/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const response = await fetch(`https://taobalance.bittensor.com/${address}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch balance: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Error proxying TAO balance request:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch TAO balance',
+      balance: '0' // Return a default balance
+    });
+  }
+});
+
 // Start Server
 server.listen(PORT, () => {
   console.log(`🚀 Server is running on http://127.0.0.1:${PORT}`);

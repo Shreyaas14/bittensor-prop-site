@@ -6,7 +6,8 @@ import os
 import time
 
 app = Flask(__name__)
-CORS(app)
+# Configure CORS properly to handle preflight requests
+CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 socketio = SocketIO(app, cors_allowed_origins="*")  # WebSocket Support
 
 SECRET_KEY = os.getenv("JWT_SECRET", "your_secret_key_here")
@@ -56,6 +57,44 @@ def auth_login():
         return jsonify({"error": str(e)}), 500
 
 
+### ✅ Logout Route
+@app.route('/auth/logout', methods=['POST'])
+def auth_logout():
+    try:
+        # Get the authorization header
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({"error": "Invalid authorization header"}), 401
+        
+        token = auth_header.split(' ')[1]
+        
+        try:
+            # Verify the token
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            address = payload.get('address')
+            
+            # In a real implementation, you might:
+            # 1. Add the token to a blacklist
+            # 2. Notify other services about the logout
+            # 3. Clear any server-side session data
+            
+            print(f"🔒 User {address} logged out successfully")
+            
+            # Emit a socket event to notify other connected clients
+            socketio.emit("wallet_disconnected", {"address": address})
+            
+            return jsonify({"message": "Logged out successfully"}), 200
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 ### ✅ WebSocket Handlers
 @socketio.on("connect")
 def handle_connect():
@@ -71,3 +110,33 @@ def handle_disconnect():
 if __name__ == '__main__':
     print("🚀 Starting Flask Auth API on http://127.0.0.1:5001")
     socketio.run(app, host="127.0.0.1", port=5001, debug=True)
+
+
+### ✅ Token Verification Route
+@app.route('/auth/verify', methods=['GET'])
+def verify_token():
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "No token provided"}), 401
+    
+    token = auth_header.split(' ')[1]
+    
+    try:
+        # Verify the JWT token
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return jsonify({"valid": True, "address": decoded["address"]}), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+
+
+# Add this route to handle OPTIONS requests explicitly
+@app.route('/auth/verify', methods=['OPTIONS'])
+def handle_verify_options():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    return response, 200

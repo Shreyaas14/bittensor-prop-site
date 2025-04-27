@@ -14,6 +14,7 @@ import Footer from '@/components/Footer';
 import SubnetForkingPage from '@/pages/SubnetForkingPage';
 import '@/styles/globals.css';
 import { AppContextProvider } from './contexts/AppContext'; 
+import axios from 'axios';
 
 // Global Layout for pages to ensure proper structure
 const PageLayout: React.FC<{ children: React.ReactNode, showFooter?: boolean }> = ({ children, showFooter = true }) => {
@@ -237,13 +238,10 @@ const App: React.FC = () => {
     setWalletAddress(address);
     setTaoBalance(balance);
     
-    // Store in localStorage for persistence
-    if (address) {
-      localStorage.setItem("walletAddress", address);
-      localStorage.setItem("taoBalance", balance.toString());
-    } else {
-      localStorage.removeItem("walletAddress");
-      localStorage.removeItem("taoBalance");
+    // If address is null, it means we're disconnecting
+    if (address === null) {
+      console.log("Wallet disconnected, clearing state");
+      // You might want to perform additional cleanup here
     }
   };
   
@@ -271,6 +269,38 @@ const App: React.FC = () => {
       document.documentElement.style.backgroundColor = '';
       document.body.classList.remove('bg-[#141414]');
     };
+  }, []);
+
+  useEffect(() => {
+    // Check if wallet was previously connected
+    const savedWalletAddress = localStorage.getItem("walletAddress");
+    const token = localStorage.getItem("jwt");
+    
+    // If no token but address exists, clear everything
+    if (!token && savedWalletAddress) {
+      console.log("JWT token missing but wallet address exists - clearing state");
+      localStorage.removeItem("walletAddress");
+      localStorage.removeItem("taoBalance");
+      setWalletAddress(null);
+      setTaoBalance(0);
+    }
+    
+    // Verify token validity with backend
+    if (token) {
+      axios.get("http://127.0.0.1:5001/auth/verify", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }).catch(() => {
+        // If verification fails, clear everything
+        console.log("Token verification failed - clearing state");
+        localStorage.removeItem("jwt");
+        localStorage.removeItem("walletAddress");
+        localStorage.removeItem("taoBalance");
+        setWalletAddress(null);
+        setTaoBalance(0);
+      });
+    }
   }, []);
 
   return (
