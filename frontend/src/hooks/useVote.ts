@@ -1,16 +1,22 @@
 import { useState } from 'react';
 import { castVote } from '@/api/api';
 
-export const useVote = (proposalId: string) => {
+export const useVote = (
+  mongoId: string,
+  onchainId: number           // ← add this parameter
+) => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
-  const vote = async (voteType: 'yes' | 'no' | 'abstain', wallet: string | null, taoBalance: number) => {
+  const vote = async (
+    voteType: 'yes' | 'no' | 'abstain',
+    wallet: string | null,
+    taoBalance: number
+  ) => {
     if (!wallet) {
       setError('Wallet not connected');
       return;
     }
-
     if (taoBalance <= 0) {
       setError('Insufficient TAO balance to vote');
       return;
@@ -20,16 +26,14 @@ export const useVote = (proposalId: string) => {
     setError(null);
 
     try {
-      // ✅ Ensure voteWeight is properly assigned
-      const voteWeight = taoBalance || 1; // Default to 1 if undefined
-
+      const voteWeight = taoBalance;  // default to full balance
       console.log(`🔄 Casting vote with weight: ${voteWeight} TAO`);
 
-      // Ensure `castVote` receives the correct parameters
-      const updatedProposal = await castVote(proposalId, voteType, wallet!, voteWeight);
+      // Pass both mongoId and onchainId to backend
+      await castVote(mongoId, onchainId, voteType, "0xeFcfDE6032b9b03d346C1A85dA3cbBb8BFd2D807", voteWeight);
 
       setLoading(false);
-      return updatedProposal;
+      return true;
     } catch (err: any) {
       console.error('❌ Error casting vote →', err.response?.data ?? err);
       const serverMsg = err.response?.data?.error;

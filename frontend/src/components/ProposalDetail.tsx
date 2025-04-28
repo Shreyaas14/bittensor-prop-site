@@ -25,6 +25,7 @@ interface VotingStats {
 
 interface Proposal {
   _id: string;
+  onchainProposalId?: number;
   content: ProposalContent;
   voting_stats: VotingStats;
   walletAddress: string;

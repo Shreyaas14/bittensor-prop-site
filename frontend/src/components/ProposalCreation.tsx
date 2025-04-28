@@ -147,16 +147,23 @@ const ProposalCreation = () => {
       console.log(`Creating a ${proposalLevel.toUpperCase()} proposal`, 
         proposalLevel === 'subnet' ? `for subnet #${numericSubnetId}` : '');
 
+      // compute on‐chain timestamps
+      const now = new Date();
+      const closing = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days out
+
       const proposalPayload = {
         content: {
           title,
+          summary: abstract,            // use your “summary” field if you want
           abstract,
           full_proposal: fullProposal
         },
-        proposal_creator: walletAddress,
-        level: proposalLevel,
-        subnet_id: numericSubnetId,
-        voting_stats: { yes: 0, no: 0, abstain: 0, total_votes: 0 }
+        proposal_creator: walletAddress!,
+        level: proposalLevel,           // "network" or "subnet"
+        subnet_id: numericSubnetId,     // numeric only if subnet
+        voting_start: now.toISOString(),
+        voting_end: closing.toISOString(),
+        voting_stats: { yes: 0, no: 0, abstain: 0, total_votes: 0 },
       };
 
       // Log the exact payload we're sending to ensure subnet_id is included
@@ -306,7 +313,7 @@ const ProposalCreation = () => {
                         className="w-full p-3 bg-black/50 border border-white/10 text-white rounded-lg focus:border-teal focus:ring-1 focus:ring-teal focus:outline-none transition-all duration-200 hover:border-white/20"
                       >
                         <option value="">Select a subnet</option>
-                        {Array.from({ length: 98 }, (_, i) => (
+                        {Array.from({ length: 99 }, (_, i) => (
                           <option key={i} value={i.toString()}>{i}</option>
                         ))}
                       </select>

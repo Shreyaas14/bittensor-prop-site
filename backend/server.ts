@@ -1,66 +1,54 @@
 // server.ts
 // @ts-nocheck
-// server.ts
 // This file serves as a proxy between the frontend and the Flask Bittensor API
-
 import dotenv from "dotenv";
 dotenv.config();
+
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
-import fetch from "node-fetch";
-import Comment from './models/Comment';
-import Proposal from './models/Proposal';
+import Comment from './models/Comment.ts';
+import Proposal from './models/Proposal.js';
+import { JsonRpcProvider, Contract, Wallet, WebSocketProvider, BigNumber, ethers } from "ethers";
+import VotingArtifact from "./src/abi/SoftConsensusVoting.json";
+import IntersubjectivityArtifact from "./src/abi/intersubjectivityToken.json";
+import DelegatedVotingArtifact from "./src/abi/DelegatedVoting.json";
+import addresses from "./src/contract_addresses.json";
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const WEBSOCKET_URL = process.env.WEBSOCKET_URL_LOCAL;
 const FLASK_SERVER = process.env.FLASK_SERVER || "http://127.0.0.1:5001";
+const RPC_URL = process.env.RPC_URL_LOCAL
+const PK = process.env.PRIVATE_KEY!;
+const CONTRACT = process.env.VOTING_CONTRACT_ADDRESS!
+const INTER_CONTRACT = process.env.TOKEN_CONTRACT_ADDRESS!
+const DELEGATION_CONTRACT = process.env.DELEGATION_CONTRACT_ADDRESS!
 
-// ─── BODY PARSING MIDDLEWARE ────────────────────────────────────────────────────
-// without this, req.body will be undefined and every POST/PUT with a JSON body
-// blows up with a 500
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ===== CORS CONFIGURATION =====
-app.use(cors());
-
-// Apply CORS headers to all responses
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  next();
-});
-
-// Specific handler for OPTIONS requests
-app.options('*', (req, res) => {
-  res.status(200).end();
-});
-
-// Middleware
-app.use((req, res, next) => {
-  // Log all incoming requests
-  console.log(`${req.method} ${req.url}`);
-  
-  // For POST/PUT requests, log the body
-  if (req.method === 'POST' || req.method === 'PUT') {
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
+// Dynamic import helper for node-fetch (ESM-only)
+let _fetch: typeof fetch | null = null;
+async function fetchDynamic(input: RequestInfo, init?: RequestInit) {
+  if (!_fetch) {
+    const mod = await import("node-fetch");
+    _fetch = mod.default as typeof fetch;
   }
-  
-  // Continue to the next middleware
-  next();
-});
+  return _fetch!(input, init);
+}
 
-// MongoDB Connection
-const mongoURI = process.env.MONGODB_URI || "mongodb://localhost:27017/bittensor-governance";
-mongoose.set('strictQuery', false);
-mongoose
-  .connect(mongoURI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch((error) => console.error('❌ MongoDB connection error:', error.message));
+// Ethereum on-chain setup
+const provider = new JsonRpcProvider(RPC_URL);
+const wsProv = new WebSocketProvider(WEBSOCKET_URL, {
+  chainId: 945,
+  name:  "localnet",
+  ensAddress: null
+});
+const signer = new Wallet(PK, wsProv);
+const votingOnChain = new Contract(CONTRACT, VotingArtifact.abi, signer);
+const intersubjectivityToken = new Contract(INTER_CONTRACT, IntersubjectivityArtifact.abi, signer);
+const tokenDelegation = new Contract(DELEGATION_CONTRACT, DelegatedVotingArtifact.abi, signer);
+
 
 // Initialize WebSocket Server with proper CORS
 const server = http.createServer(app);
@@ -72,226 +60,318 @@ const io = new Server(server, {
   },
 });
 
-// Debug endpoint to check if server is running
-app.get('/api/debug', (req, res) => {
-  console.log('Debug endpoint hit');
-  res.json({ message: 'Server is running' });
-});
-
-// Debug endpoint to check if Comment model is loaded
-app.get('/api/debug/comment-model', (req, res) => {
-  console.log('Comment model:', Comment);
-  res.json({ 
-    modelName: Comment.modelName,
-    collectionName: Comment.collection.name,
-    mongoURI: mongoURI
+// Listen for on-chain events
+votingOnChain.on('ProposalCreated', (pid, creator, event) => {
+  console.log('📝 ProposalCreated →', {
+    proposalId: pid.toString(),
+    txHash: event.transactionHash,
+    block: event.blockNumber
+  });
+  io.emit('onchain:proposalCreated', {
+    id: pid.toNumber(),
+    creator,
+    txHash: event.transactionHash,
+    block: event.blockNumber
   });
 });
 
-// Debug endpoint to check MongoDB connection
-app.get('/api/debug/db', async (req, res) => {
+votingOnChain.on('VoteCast', (pid, voter, voteType, weight, event) => {
+  console.log('🗳 VoteCast →', {
+    proposalId: pid.toString(),
+    voteType,
+    weight: (weight / 10000000000000000000000).toString(),
+  });
+  io.emit('onchain:voteCast', {
+    id: pid.toNumber(),
+    voter,
+    voteType,
+    weight: weight.toString(),
+    txHash: event.transactionHash
+  });
+});
+
+// ─── MIDDLEWARE ────────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
+app.options('*', (_, res) => res.sendStatus(200));
+
+// Request logger
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  if (['POST','PUT'].includes(req.method)) {
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
+// ─── DATABASE ─────────────────────────────────────────────────────────────────
+const mongoURI = process.env.MONGODB_URI || "mongodb://localhost:27017/bittensor-governance";
+mongoose.set('strictQuery', false);
+mongoose.connect(mongoURI)
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err.message));
+
+// ─── ROUTES ───────────────────────────────────────────────────────────────────
+
+// register stakeholder to subnet
+app.post('/api/subnets/:subnetId/register', async (req, res) => {
   try {
-    const dbState = mongoose.connection.readyState;
-    const stateMap = {
-      0: 'disconnected',
-      1: 'connected',
-      2: 'connecting',
-      3: 'disconnecting'
-    };
-    res.json({ 
-      status: stateMap[dbState],
-      database: mongoose.connection.name,
-      host: mongoose.connection.host
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const { accounts, roles } = req.body;
+    if (!accounts || !roles) {
+      return res.status(400).json({ error: 'accounts & roles required' });
+    }
+    const tx = await intersubjectivityToken.registerStakeholders(accounts, roles);
+    await tx.wait();
+    res.json({ success: true, txHash: tx.hash });
+  } catch (e: any) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
   }
 });
 
-// ===== HEALTH CHECKS =====
-
-// Simple health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+// init and rebalance
+app.post('/api/subnets/:subnetId/initialize', async (req, res) => {
+  try {
+    const tx = await intersubjectivityToken.initializeAllocations();
+    await tx.wait();
+    res.json({ success: true, txHash: tx.hash });
+  } catch (e: any) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// Check Flask server health
+app.post('/api/subnets/:subnetId/rebalance', async (req, res) => {
+  try {
+    const tx = await intersubjectivityToken.rebalance();
+    await tx.wait();
+    res.json({ success: true, txHash: tx.hash });
+  } catch (e: any) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+
+// Debug endpoints
+app.get('/api/debug', (req, res) => res.json({ message: 'Server is running' }));
+app.get('/api/debug/db', (req, res) => {
+  const stateMap = ['disconnected','connected','connecting','disconnecting'];
+  res.json({
+    status: stateMap[mongoose.connection.readyState],
+    db: mongoose.connection.name,
+    host: mongoose.connection.host
+  });
+});
+
+// Health checks
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/flask-health', async (req, res) => {
   try {
-    const response = await fetch(`${FLASK_SERVER}/health`);
+    const response = await fetchDynamic(`${FLASK_SERVER}/health`);
     if (response.ok) {
       const data = await response.json();
       res.json({ flaskStatus: 'ok', status: data.status });
     } else {
-      res.status(502).json({ flaskStatus: 'error', message: 'Flask server returned an error' });
+      res.status(502).json({ flaskStatus: 'error' });
     }
-  } catch (error) {
-    res.status(503).json({ 
-      flaskStatus: 'unavailable', 
-      message: 'Cannot connect to Flask server',
-      details: error.message
-    });
+  } catch (error: any) {
+    res.status(503).json({ flaskStatus: 'unavailable', error: error.message });
   }
 });
 
-// ===== WALLET API ENDPOINTS =====
-
-// List available wallets
+// Wallet proxy
 app.get('/wallet/list', async (req, res) => {
   try {
-    const response = await fetch(`${FLASK_SERVER}/wallet/list`);
-    
-    if (!response.ok) {
-      throw new Error(`Flask server error: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const r = await fetchDynamic(`${FLASK_SERVER}/wallet/list`);
+    const data = await r.json();
     res.json(data);
-  } catch (error) {
-    console.error('Error listing wallets:', error);
-    res.status(500).json({ 
-      error: "Failed to list wallets", 
-      details: error.message,
-      message: "Could not connect to Bittensor wallet service. Please check if the wallet service is running."
-    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
-
-// Connect to wallet
 app.post('/wallet/connect', async (req, res) => {
-  console.log("🔍 Forwarding wallet connect request to Flask:", req.body);
-
   try {
-    const response = await fetch(`${FLASK_SERVER}/wallet/connect`, {
+    const r = await fetchDynamic(`${FLASK_SERVER}/wallet/connect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(req.body)
     });
-
-    const responseData = await response.json();
-    console.log("✅ Flask Response:", responseData);
-
-    res.json(responseData);
-  } catch (error) {
-    console.error("❌ Error forwarding wallet connect request:", error);
-    res.status(500).json({ error: "Internal server error" });
+    const data = await r.json();
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
-// ===== PROPOSAL API ENDPOINTS =====
-
-// Create New Proposal
+// Create Proposal
+// server.ts (excerpt)
 app.post('/api/proposals', async (req, res) => {
   try {
-    const newProposal = new Proposal(req.body);
-    const savedProposal = await newProposal.save();
+    // 1) save off-chain
+    const newP = new Proposal(req.body);
+    const saved = await newP.save();
+    io.emit('proposalCreated', saved);
 
-    io.emit('proposalCreated', savedProposal);
-    res.status(201).json(savedProposal);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    // 2) on-chain createProposal
+    const { content, voting_start, voting_end, level, subnet_id } = req.body;
+    const tx = await votingOnChain.createProposal(
+      content.title || "",
+      content.summary || "",
+      content.abstract || "",
+      content.full_proposal || "",
+      level || "",
+      subnet_id || 0,
+      Math.floor(new Date(voting_start).getTime() / 1000),
+      Math.floor(new Date(voting_end).getTime()   / 1000)
+    );
+    const receipt = await tx.wait();
+
+    // 3) try the decoded events array
+    let createdEvent = Array.isArray(receipt.events)
+      ? receipt.events.find(e => e.event === 'ProposalCreated')
+      : undefined;
+
+    // 4) fallback: manually parse raw logs
+    if (!createdEvent) {
+      const iface = votingOnChain.interface;
+      for (const log of receipt.logs) {
+        try {
+          const parsed = iface.parseLog(log);
+          if (parsed.name === 'ProposalCreated') {
+            createdEvent = { args: parsed.args } as any;
+            break;
+          }
+        } catch {
+          // not our event
+        }
+      }
+    }
+
+    if (!createdEvent) {
+      console.warn('⚠️ ProposalCreated event missing—logs:', receipt.logs);
+      return res
+        .status(500)
+        .json({ error: 'On-chain ProposalCreated event missing' });
+    }
+
+    const rawId = createdEvent.args.proposalId;
+
+    let onchainId: number;
+    if (rawId && typeof rawId === 'object' && 'toNumber' in rawId) {
+      onchainId = (rawId as ethers.BigNumber).toNumber();
+    } else {
+      onchainId = Number(rawId);
+      if (Number.isNaN(onchainId)) {
+        console.warn('Could not parse proposalId:', rawId);
+        return res.status(500).json({ error: 'Invalid onchain proposalId format' });
+      }
+    }
+
+    saved.onchainProposalId = onchainId;
+    await saved.save();
+
+    res.status(201).json(saved);
+  } catch (err: any) {
+    console.error('POST /api/proposals error →', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Get All Proposals
+
+// List & read Proposals
 app.get('/api/proposals', async (req, res) => {
   try {
-    const proposals = await Proposal.find();
-    res.json(proposals);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(await Proposal.find());
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
-
-// Get Proposal by ID
 app.get('/api/proposals/:id', async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: 'Invalid proposal ID format' });
+      return res.status(400).json({ error: 'Invalid ID' });
     }
-    
-    let proposal;
-    try {
-      proposal = await Proposal.findById(req.params.id);
-    } catch (findErr) {
-      console.error('Error finding proposal:', findErr);
-      return res.status(500).json({ error: 'Database error when finding proposal' });
-    }
-
-    if (!proposal) {
-      return res.status(404).json({ error: 'Proposal not found' });
-    }
-    res.json(proposal);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const p = await Proposal.findById(req.params.id);
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    res.json(p);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
-// Update Votes
 app.put('/api/proposals/:id/vote', async (req, res) => {
   try {
-    // Log the full request body for debugging
-    console.log(`Vote request received for proposal ${req.params.id}:`, req.body);
-    
-    const { vote, weight = 1, walletAddress } = req.body;
-    
-    if (!vote) {
-      return res.status(400).json({ error: 'Vote type (yes/no/abstain) is required' });
-    }
-    
-    // Find the proposal with better error handling
-    let proposal;
-    try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: 'Invalid proposal ID format' });
-      }
-      
-      proposal = await Proposal.findById(req.params.id);
-    } catch (findErr) {
-      console.error('Error finding proposal:', findErr);
-      return res.status(500).json({ error: 'Database error when finding proposal' });
+    const { vote, walletAddress } = req.body;
+    if (!vote || !walletAddress) {
+      return res.status(400).json({ error: 'vote and walletAddress are required' });
     }
 
-    if (!proposal) {
-      return res.status(404).json({ error: 'Proposal not found' });
+    // 1) Load & off‐chain update
+    const p = await Proposal.findById(req.params.id);
+    if (!p) return res.status(404).json({ error: 'Proposal not found' });
+
+    // 2) Determine weight
+    let weightBN = 1
+    if (p.subnet_id === 99) {
+      // pull exactly from your DelegatedVoting.freeBalance mapping
+      weightBN = await intersubjectivityToken.userAllocation(walletAddress);
+      weightBN = Number(weightBN) / 10000000000000000000000;
     }
-    
-    // Initialize voting_stats if it doesn't exist
-    if (!proposal.voting_stats) {
-      proposal.voting_stats = {
-        yes: 0,
-        no: 0,
-        abstain: 0,
-        total_votes: 0
-      };
+
+    if (weightBN ==0) {
+      return res.status(400).json({ error: 'No tokens available to vote with' });
     }
-    
-    // Update vote counts based on vote type
-    if (vote === 'yes') {
-      proposal.voting_stats.yes = (proposal.voting_stats.yes || 0) + weight;
-    } else if (vote === 'no') {
-      proposal.voting_stats.no = (proposal.voting_stats.no || 0) + weight;
-    } else if (vote === 'abstain') {
-      proposal.voting_stats.abstain = (proposal.voting_stats.abstain || 0) + weight;
-    } else {
-      return res.status(400).json({ error: `Invalid vote: ${vote}` });
-    }
-    
-    // Update total votes
-    proposal.voting_stats.total_votes = (proposal.voting_stats.total_votes || 0) + weight;
-    
-    // Save the updated proposal
-    const updated = await proposal.save();
-    console.log('Vote recorded successfully:', updated.voting_stats);
-    
-    // Emit socket event with the updated proposal
+    const weight = weightBN;
+
+    // 3) Update off‐chain tally
+    p.voting_stats = p.voting_stats || { yes: 0, no: 0, abstain: 0, total_votes: 0 };
+    if (vote === 'yes')      p.voting_stats.yes     += weight;
+    else if (vote === 'no')   p.voting_stats.no      += weight;
+    else                      p.voting_stats.abstain += weight;
+    p.voting_stats.total_votes += weight;
+    const updated = await p.save();
     io.emit('voteUpdate', updated);
-    
-    return res.json(updated);
-  } catch (err) {
-    console.error('❌ Error in /api/proposals/:id/vote →', err);
-    return res.status(500).json({ error: err.message || 'Server error' });
+
+    // 4) On‐chain: correct .vote(...) signature
+    const onchainId = p.onchainProposalId!;
+    let tx;
+    if (p.subnet_id === 99) {
+      tx = await intersubjectivityToken.delegatedVote(CONTRACT, onchainId, vote);
+      console.log(`🔀 Delegated vote emit received (weight=${weight}):`);
+    } else {
+      // SoftConsensusVoting.vote(uint256, string, uint256)
+      tx = await votingOnChain.vote(onchainId, vote, weightBN);
+      console.log(`🗳 Regular vote emit received (weight=${weight}):`);
+    }
+    await tx.wait();
+
+    return res.json({ success: true, txHash: tx.hash, weight });
   }
+  catch (err: any) {
+    console.error('PUT /api/proposals/:id/vote error →', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
+// List all registered routes
+app.get('/debug/routes', (req, res) => {
+  const routes: any[] = [];
+  app._router.stack.forEach(mw => {
+    if (mw.route) {
+      routes.push({ path: mw.route.path, methods: Object.keys(mw.route.methods) });
+    }
+  });
+  res.json(routes);
 });
 
 // ===== COMMENT API ENDPOINTS =====
@@ -625,13 +705,13 @@ app.get('/debug/routes', (req, res) => {
   res.json(routes);
 });
 
-// Start Server
+// Start server
 server.listen(PORT, () => {
   console.log(`🚀 Server is running on http://127.0.0.1:${PORT}`);
-  console.log(`MongoDB URI: ${process.env.MONGODB_URI.substring(0, 20)}...`);
+  console.log(`MongoDB URI: ${mongoURI.substring(0,20)}...`);
 });
 
-// Handle Shutdown Gracefully
+// Graceful shutdown
 process.on('SIGINT', () => {
   console.log('🔴 Shutting down server...');
   server.close(() => {

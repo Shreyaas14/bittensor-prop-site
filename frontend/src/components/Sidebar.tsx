@@ -232,7 +232,17 @@ const Sidebar: React.FC<SidebarProps> = ({ proposals }) => {
                           <div className="flex items-center space-x-2">
                             {/* Proposal type indicator dot */}
                             <span className={`h-2 w-2 rounded-full ${dotColor}`}></span>
-                            <span className="font-medium truncate text-[14px] leading-[18px] tracking-[-0.03em]">
+                            <span
+                              className="
+                                font-medium 
+                                flex-1 
+                                text-[14px] 
+                                leading-[18px] 
+                                tracking-[-0.03em] 
+                                whitespace-normal 
+                                break-words
+                              "
+                            >
                               {proposal.content.title}
                             </span>
                           </div>

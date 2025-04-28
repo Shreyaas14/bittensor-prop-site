@@ -23,6 +23,7 @@ interface DateInfo {
 
 interface VotingPanelProps {
   proposalId: string;
+  onchainProposalId: number;
   votingStats: VotingStats;
   dates: {
     votingCreatedAt: string;
@@ -33,8 +34,8 @@ interface VotingPanelProps {
   endDateFormatted: string;
 }
 
-const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: initialVotingStats, dates, isVotingClosed, endDateFormatted }) => {
-  const { vote, loading, error } = useVote(proposalId);
+const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, onchainProposalId, votingStats: initialVotingStats, dates, isVotingClosed, endDateFormatted }) => {
+  const { vote, loading, error } = useVote(proposalId, onchainProposalId);
   const socket = useSocket();
   const { walletAddress, taoBalance } = useAppContext();
   const [votingStats, setVotingStats] = useState<VotingStats>(initialVotingStats);
@@ -119,7 +120,7 @@ const VotingPanel: React.FC<VotingPanelProps> = ({ proposalId, votingStats: init
     if (hasVoted) return;
     
     // Special case for hardcoded wallet address - allow voting without TAO
-    const hardcodedWallet = "5EefNBdLJjKWd2LrX8EzrucPHVBd4FyNmvY925NsQQQJzgC4";
+    const hardcodedWallet = "5GLL58Y58bMUkwYJdd1A7FMnrjEwqwHNHLSanm3S8RqU8Cmh";
     
     if (taoBalance <= 0 && walletAddress !== hardcodedWallet) {
       alert("You need TAO tokens to vote. Your current balance is 0.");

@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 
 export interface Proposal {
   _id: string;
+  onchainProposalId?: number;
   content: {
     title: string;
     summary: string;
@@ -42,7 +43,10 @@ export const useProposals = () => {
 
     // Set up socket connection
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
-    const socket: Socket = io(socketUrl);
+    const socket: Socket = io(socketUrl, {
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+    });
     
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);

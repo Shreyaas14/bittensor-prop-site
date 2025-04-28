@@ -23,82 +23,89 @@ api.interceptors.request.use(request => {
 // Get all proposals
 export const fetchProposals = async () => {
   try {
-    // Use explicit path with /api prefix if needed
     const response = await api.get('/api/proposals');
-    
-    // Debug the response structure
     console.log('API Response from /proposals:', response.data);
-    
-    // Handle different response data structures
-    let proposalsData = [];
-    
+
+    // normalize raw data into array
+    let proposalsData: any[] = [];
     if (Array.isArray(response.data)) {
       proposalsData = response.data;
     } else if (response.data && typeof response.data === 'object') {
       if (Array.isArray(response.data.proposals)) {
         proposalsData = response.data.proposals;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
+      } else if (Array.isArray(response.data.data)) {
         proposalsData = response.data.data;
       } else {
         proposalsData = [response.data];
       }
     }
-    
-    // Get proposal metadata from localStorage for subnet info
-    let proposalMetadata = {};
+
+    // load any local metadata
+    let proposalMetadata: Record<string, any> = {};
     try {
-      proposalMetadata = JSON.parse(localStorage.getItem('proposalMetadata') || '{}');
-      console.log('Retrieved proposal metadata from localStorage:', proposalMetadata);
-    } catch (err) {
-      console.error('Error parsing proposalMetadata from localStorage:', err);
-    }
-    
-    // Process each proposal
-    const processedProposals = proposalsData.map(proposal => {
-      const id = proposal._id || proposal.id;
-      // Check if we have cached metadata for this proposal
-      const metadata = proposalMetadata[id] || {};
-      
-      // Use metadata or fallback to proposal data for level and subnet_id
-      const level = metadata.level || proposal.level || 'network';
-      const subnet_id = metadata.subnet_id !== undefined ? metadata.subnet_id : 
-                        proposal.subnet_id !== undefined ? proposal.subnet_id : null;
-      
+      proposalMetadata = JSON.parse(
+        localStorage.getItem('proposalMetadata') || '{}'
+      );
+    } catch { /* ignore */ }
+
+    const processed = proposalsData.map((p: any) => {
+      const id = p._id || p.id;
+
+      // created_at
+      const created_at =
+        p.createdAt ||
+        p.created_at ||
+        new Date().toISOString();
+
       return {
         _id: id,
+        onchainProposalId: p.onchainProposalId,          // ← NEW
         content: {
-          title: proposal.content?.title || proposal.title || 'Untitled Proposal',
-          summary: proposal.content?.summary || proposal.summary || proposal.content?.title || '',
-          abstract: proposal.content?.abstract || proposal.abstract || '',
-          details: proposal.content?.full_proposal || proposal.content?.details || proposal.details || '',
+          title:   p.content?.title   || p.title   || 'Untitled Proposal',
+          summary: p.content?.summary || p.summary || '',
+          abstract:p.content?.abstract|| p.abstract|| '',
+          details: p.content?.full_proposal ||
+                   p.content?.details      ||
+                   p.details               ||
+                   ''
         },
         voting_stats: {
-          yes: proposal.voting_stats?.yes || 0,
-          no: proposal.voting_stats?.no || 0,
-          abstain: proposal.voting_stats?.abstain || 0,
-          total_votes: proposal.voting_stats?.total_votes || 0,
+          yes:        p.voting_stats?.yes        || 0,
+          no:         p.voting_stats?.no         || 0,
+          abstain:    p.voting_stats?.abstain    || 0,
+          total_votes:p.voting_stats?.total_votes|| 0
         },
-        walletAddress: proposal.proposal_creator || proposal.wallet_address || proposal.walletAddress || '',
-        created_at: proposal.createdAt || proposal.created_at || new Date().toISOString(),
-        level: level,
-        subnet_id: subnet_id
+        walletAddress: p.proposal_creator || '',
+        created_at,                                        // ← added
+
+        // either backend-provided voting_end, or 48h after created_at:
+        voting_start: p.voting_start || created_at,        // fallback
+        voting_end:   p.voting_end   ||
+                      new Date(
+                        new Date(created_at).getTime() + 48 * 60 * 60 * 1000
+                      ).toISOString(),                    // ← added
+
+        level:     proposalMetadata[id]?.level     || p.level     || 'network',
+        subnet_id: proposalMetadata[id]?.subnet_id || p.subnet_id || null
       };
     });
-    
-    // Sort proposals by date (newest first)
-    const sortedProposals = processedProposals.sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return dateB - dateA; // Descending order (newest first)
+
+    // sort newest first
+    processed.sort((a, b) => {
+      return (
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
+      );
     });
-    
-    console.log('Sorted proposals:', sortedProposals);
-    return sortedProposals;
+
+    console.log('Sorted proposals:', processed);
+    return processed;
   } catch (error) {
     console.error('Error fetching proposals:', error);
     throw error;
   }
 };
+
 
 export const getProposals = fetchProposals;
 
@@ -190,15 +197,23 @@ export const createProposal = async (proposalData) => {
     const payload = {
       content: {
         title: proposalData.content.title,
-        summary: proposalData.content.title || "Proposal Summary", 
+        summary: proposalData.content.summary || "Proposal Summary",
         abstract: proposalData.content.abstract,
         full_proposal: proposalData.content.full_proposal
       },
       proposal_creator: proposalData.proposal_creator,
-      level: proposalData.level, // 'network' or 'subnet'
-      subnet_id: subnet_id, // Only present and numeric for subnet proposals
-      voting_stats: proposalData.voting_stats || { yes: 0, no: 0, abstain: 0, total_votes: 0 }
+      level: proposalData.level,        // 'network' or 'subnet'
+      subnet_id: subnet_id,              // numeric for subnet proposals
+      voting_start: proposalData.voting_start,  // e.g. "2025-05-01T00:00:00Z"
+      voting_end: proposalData.voting_end,      // e.g. "2025-05-02T00:00:00Z"
+      voting_stats: proposalData.voting_stats || {
+        yes: 0,
+        no: 0,
+        abstain: 0,
+        total_votes: 0
+      }
     };
+    
     
     console.log('Final API payload:', JSON.stringify(payload, null, 2));
     
@@ -237,7 +252,7 @@ export const createProposal = async (proposalData) => {
 };
 
 // Cast a vote on a proposal
-export const castVote = async (proposalId: string, vote: 'yes' | 'no' | 'abstain', walletAddress: string, weight: number = 1) => {
+export const castVote = async (proposalId: string, onchainId: number, vote: 'yes' | 'no' | 'abstain', walletAddress: string, weight: number = 1) => {
   try {
     console.log(`Sending vote request for proposal ${proposalId}:`, {
       vote,
@@ -248,7 +263,8 @@ export const castVote = async (proposalId: string, vote: 'yes' | 'no' | 'abstain
     const response = await api.put(`/api/proposals/${proposalId}/vote`, {
       vote,
       weight,
-      walletAddress
+      walletAddress,
+      onchainId
     });
     
     return response.data;
